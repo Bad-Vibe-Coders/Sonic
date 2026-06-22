@@ -1,0 +1,174 @@
+site_name: AI Conversation Intelligence Platform — Architecture
+site_description: Enterprise architecture repository for the AI Conversation Intelligence Platform.
+site_author: Architecture Team
+repo_name: AI-Conversation-Intelligence-Architecture
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+  - glightbox            # diagram zoom / lightbox
+
+extra:
+  generator: false
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - Executive Summary: 01-executive-summary.md
+      - Business Overview: 02-business-overview.md
+      - System Overview: 03-system-overview.md
+      - Functional Architecture: 04-functional-architecture.md
+      - Non-Functional Architecture: 05-nonfunctional-architecture.md
+      - Diagram Index: architecture_index.md
+  - AI:
+      - Overview: ai/overview.md
+      - Audio Processing: ai/audio-processing.md
+      - Speech Recognition: ai/speech-recognition.md
+      - NLP: ai/nlp.md
+      - LLM Intelligence: ai/llm.md
+      - Prediction: ai/prediction.md
+      - Coaching: ai/coaching.md
+      - Analytics: ai/analytics.md
+  - Backend:
+      - Overview: backend/overview.md
+      - API: backend/api.md
+      - Authentication: backend/authentication.md
+      - Services: backend/services.md
+      - Event-Driven: backend/event-driven.md
+  - Database:
+      - Overview: database/overview.md
+      - Relational: database/relational.md
+      - Warehouse: database/warehouse.md
+      - Vector DB: database/vector-db.md
+      - Feature Store: database/feature-store.md
+  - Dashboard:
+      - Executive: dashboard/executive.md
+      - Supervisor: dashboard/supervisor.md
+      - QA: dashboard/qa.md
+      - Customer: dashboard/customer.md
+      - Operations: dashboard/operations.md
+  - Deployment:
+      - Docker: deployment/docker.md
+      - Kubernetes: deployment/kubernetes.md
+      - Infrastructure: deployment/infrastructure.md
+      - Networking: deployment/networking.md
+  - Security:
+      - Authentication: security/authentication.md
+      - Authorization: security/authorization.md
+      - Encryption: security/encryption.md
+      - Audit: security/audit.md
+      - Monitoring: security/monitoring.md
+  - Product: product/overview.md
+  - Appendix · All Diagrams:
+      - System Overview:
+        - '01 System Context Diagram': diagrams/01_System_Overview/01_System_Context_Diagram.md
+        - '02 High Level Architecture': diagrams/01_System_Overview/02_High_Level_Architecture.md
+        - '03 Container Diagram': diagrams/01_System_Overview/03_Container_Diagram.md
+        - '04 Microservice Dependency': diagrams/01_System_Overview/04_Microservice_Dependency.md
+        - '05 Service Communication': diagrams/01_System_Overview/05_Service_Communication.md
+        - '06 Call Processing Overview': diagrams/01_System_Overview/06_Call_Processing_Overview.md
+        - '07 AI Service Architecture': diagrams/01_System_Overview/07_AI_Service_Architecture.md
+        - '08 Dashboard Modules': diagrams/01_System_Overview/08_Dashboard_Modules.md
+        - '09 Analytics Architecture': diagrams/01_System_Overview/09_Analytics_Architecture.md
+        - '10 Overall Data Flow': diagrams/01_System_Overview/10_Overall_Data_Flow.md
+      - AI Pipeline:
+        - '11 End to End AI Pipeline': diagrams/02_AI_Pipeline/11_End_to_End_AI_Pipeline.md
+        - '12 Audio Processing': diagrams/02_AI_Pipeline/12_Audio_Processing.md
+        - '13 Speech Recognition': diagrams/02_AI_Pipeline/13_Speech_Recognition.md
+        - '14 Speaker Diarization': diagrams/02_AI_Pipeline/14_Speaker_Diarization.md
+        - '15 Emotion Recognition': diagrams/02_AI_Pipeline/15_Emotion_Recognition.md
+        - '16 NLP Pipeline': diagrams/02_AI_Pipeline/16_NLP_Pipeline.md
+        - '17 Intent Detection': diagrams/02_AI_Pipeline/17_Intent_Detection.md
+        - '18 Sentiment Analysis': diagrams/02_AI_Pipeline/18_Sentiment_Analysis.md
+        - '19 Topic Modeling': diagrams/02_AI_Pipeline/19_Topic_Modeling.md
+        - '20 Named Entity Recognition': diagrams/02_AI_Pipeline/20_Named_Entity_Recognition.md
+        - '21 Keyword Extraction': diagrams/02_AI_Pipeline/21_Keyword_Extraction.md
+        - '22 Conversation Intelligence': diagrams/02_AI_Pipeline/22_Conversation_Intelligence.md
+        - '23 LLM Orchestration': diagrams/02_AI_Pipeline/23_LLM_Orchestration.md
+        - '24 QA Evaluation': diagrams/02_AI_Pipeline/24_QA_Evaluation.md
+        - '25 Business Intelligence': diagrams/02_AI_Pipeline/25_Business_Intelligence.md
+        - '26 Prediction Engine': diagrams/02_AI_Pipeline/26_Prediction_Engine.md
+        - '27 Coaching Recommendation': diagrams/02_AI_Pipeline/27_Coaching_Recommendation.md
+        - '28 Analytics Aggregation': diagrams/02_AI_Pipeline/28_Analytics_Aggregation.md
+        - '29 AI Decision Engine': diagrams/02_AI_Pipeline/29_AI_Decision_Engine.md
+        - '30 Complete AI Pipeline': diagrams/02_AI_Pipeline/30_Complete_AI_Pipeline.md
+      - Data Architecture:
+        - '31 Database Architecture': diagrams/03_Data_Architecture/31_Database_Architecture.md
+        - '32 ER Diagram': diagrams/03_Data_Architecture/32_ER_Diagram.md
+        - '33 Analytics ERD': diagrams/03_Data_Architecture/33_Analytics_ERD.md
+        - '34 Feature Store': diagrams/03_Data_Architecture/34_Feature_Store.md
+        - '35 Vector Search': diagrams/03_Data_Architecture/35_Vector_Search.md
+        - '36 Object Storage': diagrams/03_Data_Architecture/36_Object_Storage.md
+        - '37 Metadata Storage': diagrams/03_Data_Architecture/37_Metadata_Storage.md
+        - '38 Cache Architecture': diagrams/03_Data_Architecture/38_Cache_Architecture.md
+        - '39 Analytics Warehouse': diagrams/03_Data_Architecture/39_Analytics_Warehouse.md
+        - '40 Data Lifecycle': diagrams/03_Data_Architecture/40_Data_Lifecycle.md
+      - Backend:
+        - '41 API Gateway': diagrams/04_Backend/41_API_Gateway.md
+        - '42 Upload API': diagrams/04_Backend/42_Upload_API.md
+        - '43 Processing Sequence': diagrams/04_Backend/43_Processing_Sequence.md
+        - '44 Dashboard Request': diagrams/04_Backend/44_Dashboard_Request.md
+        - '45 Report Generation': diagrams/04_Backend/45_Report_Generation.md
+        - '46 Event Driven Backend': diagrams/04_Backend/46_Event_Driven_Backend.md
+        - '47 Backend Service Dependency': diagrams/04_Backend/47_Backend_Service_Dependency.md
+        - '48 Authentication': diagrams/04_Backend/48_Authentication.md
+        - '49 RBAC': diagrams/04_Backend/49_RBAC.md
+        - '50 Backend Overview': diagrams/04_Backend/50_Backend_Overview.md
+      - Product Views:
+        - 'P6 Dashboard Business Analytics': diagrams/05_Product/P6_Dashboard_Business_Analytics.md
+        - 'P7 AI Models': diagrams/05_Product/P7_AI_Models.md
+        - 'P8 ML MLOps': diagrams/05_Product/P8_ML_MLOps.md
+        - 'P9 Operational Flow': diagrams/05_Product/P9_Operational_Flow.md
+        - 'P10 Documentation': diagrams/05_Product/P10_Documentation.md
+        - 'P11 Database Program View': diagrams/05_Product/P11_Database_Program_View.md
+        - 'P12 Infrastructure': diagrams/05_Product/P12_Infrastructure.md
+        - 'P13 Security': diagrams/05_Product/P13_Security.md
+        - 'P14 Product Features': diagrams/05_Product/P14_Product_Features.md
+  - References:
+      - Glossary: glossary.md
+      - References: references.md

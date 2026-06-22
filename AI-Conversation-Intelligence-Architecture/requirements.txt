@@ -1,0 +1,8 @@
+# Documentation toolchain
+mkdocs>=1.6
+mkdocs-material>=9.5
+mkdocs-glightbox>=0.4
+pymdown-extensions>=10.7
+
+# PDF export (optional)
+md2pdf>=1.0 ; python_version >= "3.8"
