@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# MkDocs build
+site/
+
+# Build outputs
+output/html/*
+output/website/*
+!output/**/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs (keep the folder, ignore contents)
+logs/*.log

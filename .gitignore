@@ -31,5 +31,3 @@ venv/
 *.local
 coverage/
 
-# architecture docs live separately, not part of this app repo
-AI-Conversation-Intelligence-Architecture/
