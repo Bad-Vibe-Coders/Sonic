@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# build output
+dist/
+build/
+**/dist/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / os
+.DS_Store
+.vscode/
+.idea/
+
+# python (backend)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# misc
+*.local
+coverage/
+
+# architecture docs live separately, not part of this app repo
+AI-Conversation-Intelligence-Architecture/
