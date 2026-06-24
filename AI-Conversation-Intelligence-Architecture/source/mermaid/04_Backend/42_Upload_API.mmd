@@ -1,0 +1,9 @@
+%% 42 · Upload API
+%% PLACEHOLDER — replace with the authoritative source for this diagram.
+%% Rendered export: diagrams/png/04_Backend/42_Upload_API.png
+%% Purpose: Upload API & ingestion.
+flowchart LR
+    SUT["Upload API"]
+    SUT --> D0["API gateway"]
+    SUT --> D1["Object storage"]
+    SUT --> D2["Queue"]
