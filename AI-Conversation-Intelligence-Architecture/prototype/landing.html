@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sonic — AI Conversation Intelligence</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script>
+  // design.md (Cal.com) tokens -> Tailwind. Light system for marketing.
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#111111', body: '#374151', muted: '#6b7280', mutedSoft: '#898989',
+          hairline: '#e5e7eb', hairlineSoft: '#f3f4f6', canvas: '#ffffff',
+          surfaceSoft: '#f8f9fa', surfaceCard: '#f5f5f5', surfaceStrong: '#e5e7eb',
+          surfaceDark: '#101010', surfaceDarkEl: '#1a1a1a',
+          onDark: '#ffffff', onDarkSoft: '#a1a1aa',
+          brandAccent: '#3b82f6', success: '#10b981', warning: '#f59e0b', error: '#ef4444',
+          // AI accent gradient endpoints (brief: reserved for "AI is doing something")
+          aiCyan: '#22d3ee', aiViolet: '#8b5cf6',
+        },
+        fontFamily: { sans: ['Inter','sans-serif'], mono: ['JetBrains Mono','monospace'] },
+        borderRadius: { md:'8px', lg:'12px', xl:'16px' },
+        maxWidth: { content: '1200px' },
+      }
+    }
+  }
+</script>
+<style>
+  /* Cal Sans substitute: Inter 600 + negative tracking (per design.md) */
+  .display { font-weight: 600; letter-spacing: -0.04em; }
+  .d-xl { font-size: 64px; line-height: 1.05; letter-spacing: -2px; }
+  .d-lg { font-size: 48px; line-height: 1.1; letter-spacing: -1.5px; }
+  .d-md { font-size: 36px; line-height: 1.15; letter-spacing: -1px; }
+  .d-sm { font-size: 28px; line-height: 1.2; letter-spacing: -0.5px; }
+  @media (max-width:768px){ .d-xl{font-size:38px;letter-spacing:-1px} .d-lg{font-size:32px} }
+
+  .ai-gradient { background-image: linear-gradient(90deg,#22d3ee,#8b5cf6); }
+  .ai-text { background-image: linear-gradient(90deg,#22d3ee,#8b5cf6); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+  /* ---- Pipeline marquee: data packets flowing left->right ---- */
+  .pipe-wire { position:absolute; left:0; right:0; top:50%; height:2px; transform:translateY(-50%);
+    background:linear-gradient(90deg,#e5e7eb,#e5e7eb); overflow:visible; }
+  .pipe-flow { position:absolute; top:50%; left:0; width:120px; height:2px; transform:translateY(-50%);
+    background:linear-gradient(90deg,transparent,#22d3ee,#8b5cf6,transparent);
+    animation: flow 3.2s linear infinite; }
+  @keyframes flow { 0%{left:-15%} 100%{left:100%} }
+  .packet { position:absolute; top:50%; width:7px; height:7px; border-radius:9999px;
+    background:radial-gradient(circle,#a78bfa,#22d3ee); box-shadow:0 0 10px 2px rgba(139,92,246,.6);
+    transform:translateY(-50%); animation: packet 3.2s linear infinite; }
+  @keyframes packet { 0%{left:-2%;opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{left:102%;opacity:0} }
+
+  .stage-node { transition: transform .25s ease, box-shadow .25s ease; }
+  .stage-node:hover { transform: translateY(-4px); box-shadow:0 8px 24px rgba(0,0,0,.10); }
+
+  /* entrance */
+  .reveal { opacity:0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity:1; transform:none; }
+  .reveal.d1{transition-delay:.06s}.reveal.d2{transition-delay:.12s}.reveal.d3{transition-delay:.18s}
+  .reveal.d4{transition-delay:.24s}.reveal.d5{transition-delay:.30s}
+
+  /* chart draw-in */
+  .spark path { stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .spark.in path { animation: draw 1.6s ease forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  .marquee { animation: marquee 28s linear infinite; }
+  @keyframes marquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+</style>
+</head>
+<body class="bg-canvas text-body font-sans antialiased">
+
+<!-- ===== TOP NAV (top-nav: 64px, white) ===== -->
+<header class="sticky top-0 z-50 h-16 bg-canvas/90 backdrop-blur border-b border-hairlineSoft">
+  <div class="max-w-content mx-auto h-full px-6 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-full ai-gradient"></div>
+      <span class="display text-ink text-[18px]">Sonic</span>
+    </div>
+    <nav class="hidden md:flex items-center gap-7 text-[14px] font-medium text-body">
+      <a href="#platform" class="hover:text-ink">Platform</a>
+      <a href="#pipeline" class="hover:text-ink">AI Pipeline</a>
+      <a href="#solutions" class="hover:text-ink">Solutions</a>
+      <a href="#pricing" class="hover:text-ink">Pricing</a>
+      <a href="#" class="hover:text-ink">Enterprise</a>
+    </nav>
+    <div class="flex items-center gap-3 text-[14px]">
+      <a href="#" class="hidden sm:inline font-semibold text-ink">Sign in</a>
+      <a href="#" class="h-10 px-5 inline-flex items-center font-semibold text-onDark bg-ink rounded-md hover:bg-[#242424] transition">Start free</a>
+    </div>
+  </div>
+</header>
+
+<!-- ===== HERO (hero-band: 7/5 split) ===== -->
+<section class="max-w-content mx-auto px-6 pt-20 pb-10 grid lg:grid-cols-12 gap-12 items-center">
+  <div class="lg:col-span-6 reveal in">
+    <span class="inline-flex items-center gap-2 text-[13px] font-medium text-ink bg-surfaceCard rounded-full px-3 py-1">
+      <span class="w-1.5 h-1.5 rounded-full ai-gradient"></span> Now with real-time prediction
+    </span>
+    <h1 class="display d-xl text-ink mt-5">Every conversation,<br><span class="ai-text">understood instantly.</span></h1>
+    <p class="text-[18px] text-body mt-5 max-w-md">Sonic turns live and recorded contact-center calls into compliance-grade, predictive, actionable intelligence — audio to insight, in one pipeline.</p>
+    <div class="flex flex-wrap items-center gap-3 mt-7">
+      <a href="#" class="h-11 px-6 inline-flex items-center font-semibold text-onDark bg-ink rounded-md hover:bg-[#242424] transition">Start free</a>
+      <a href="#pipeline" class="h-11 px-6 inline-flex items-center font-semibold text-ink bg-canvas border border-hairline rounded-md hover:bg-surfaceSoft transition">See the pipeline</a>
+    </div>
+    <div class="flex items-center gap-5 mt-8 text-[13px] text-muted">
+      <span>SOC 2 Type II</span><span class="w-1 h-1 rounded-full bg-surfaceStrong"></span>
+      <span>GDPR &amp; HIPAA</span><span class="w-1 h-1 rounded-full bg-surfaceStrong"></span>
+      <span>99.99% uptime</span>
+    </div>
+  </div>
+
+  <!-- hero app-mockup card (rounded-xl) -->
+  <div class="lg:col-span-6 reveal in d2">
+    <div class="rounded-xl border border-hairline shadow-[0_4px_24px_rgba(0,0,0,.08)] bg-canvas overflow-hidden">
+      <div class="h-9 bg-surfaceSoft border-b border-hairline flex items-center gap-1.5 px-3">
+        <span class="w-2.5 h-2.5 rounded-full bg-surfaceStrong"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-surfaceStrong"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-surfaceStrong"></span>
+        <span class="ml-3 text-[12px] text-muted font-mono">acme.sonic.ai / conversation #4471</span>
+      </div>
+      <div class="p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-[13px] text-muted">Predicted churn risk</div>
+            <div class="display d-sm ai-text" data-count="78" data-suffix="%">0%</div>
+          </div>
+          <span class="text-[12px] font-medium text-error bg-error/10 rounded-full px-3 py-1">Escalation likely</span>
+        </div>
+        <!-- emotion sparkline -->
+        <svg class="spark in w-full h-16" viewBox="0 0 320 60" fill="none" preserveAspectRatio="none">
+          <defs><linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+          <path d="M0,40 C40,20 70,50 110,30 C150,10 190,45 230,25 C270,8 300,35 320,20" stroke="url(#g1)" stroke-width="2.5"/>
+        </svg>
+        <div class="mt-4 space-y-2 text-[13px]">
+          <div class="flex gap-2"><span class="w-2 h-2 mt-1.5 rounded-full bg-brandAccent shrink-0"></span><p><span class="font-semibold text-ink">Agent:</span> I completely understand your frustration, let me fix that right now.</p></div>
+          <div class="flex gap-2"><span class="w-2 h-2 mt-1.5 rounded-full bg-badge shrink-0" style="background:#fb923c"></span><p><span class="font-semibold text-ink">Caller:</span> I've called <mark class="bg-aiViolet/15 text-ink rounded px-1">three times</mark> about this billing error.</p></div>
+        </div>
+        <div class="mt-4 rounded-lg bg-surfaceCard p-3 text-[13px]">
+          <div class="flex items-center gap-2 text-ink font-semibold mb-1"><span class="w-1.5 h-1.5 rounded-full ai-gradient"></span> AI summary</div>
+          <p class="text-body">Repeat billing dispute. Sentiment declining. Compliance: disclosure missing. Recommend supervisor callback within 2h.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ANIMATED PIPELINE (the marquee) ===== -->
+<section id="pipeline" class="max-w-content mx-auto px-6 py-16">
+  <div class="text-center mb-12 reveal">
+    <h2 class="display d-lg text-ink">One pipeline, ten stages</h2>
+    <p class="text-[16px] text-muted mt-3">Watch a single call travel from raw audio to a role-based dashboard.</p>
+  </div>
+  <div class="relative reveal">
+    <!-- wire + flow + packets -->
+    <div class="pipe-wire">
+      <div class="pipe-flow"></div>
+      <div class="packet" style="animation-delay:0s"></div>
+      <div class="packet" style="animation-delay:1.1s"></div>
+      <div class="packet" style="animation-delay:2.2s"></div>
+    </div>
+    <div class="relative grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-y-8 gap-x-2">
+      <!-- stages -->
+      <div class="stage-node flex flex-col items-center text-center gap-2">
+        <div class="w-12 h-12 rounded-lg bg-canvas border border-hairline flex items-center justify-center shadow-sm">🎙️</div>
+        <span class="text-[12px] font-semibold text-ink">Audio</span>
+      </div>
+      <div class="stage-node flex flex-col items-center text-center gap-2">
+        <div class="w-12 h-12 rounded-lg bg-canvas border border-hairline flex items-center justify-center shadow-sm">📝</div>
+        <span class="text-[12px] font-semibold text-ink">ASR</span>
+      </div>
+      <div class="stage-node flex flex-col items-center text-center gap-2">
+        <div class="w-12 h-12 rounded-lg bg-canvas border border-hairline flex items-center justify-center shadow-sm">👥</div>
+        <span class="text-[12px] font-semibold text-ink">Diarization</span>
+      </div>
+      <div class="stage-node flex flex-col items-center text-center gap-2">
+        <div class="w-12 h-12 rounded-lg bg-canvas border border-hairline flex items-center justify-center shadow-sm">😊</div>
+        <span class="text-[12px] font-semibold text-ink">Emotion</span>
+      </div>
+      <div class="stage-node flex flex-col items-center text-center gap-2">
+        <div class="w-12 h-12 rounded-lg bg-canvas border border-hairline flex items-center justify-center shadow-sm">🔤</div>
+        <span class="text-[12px] font-semibold text-ink">NLP</span>
+      </div>
+      <div class="stage-node flex flex-col items-center text-center gap-2">
+        <div class="w-12 h-12 rounded-lg ai-gradient flex items-center justify-center shadow-md text-white">✨</div>
+        <span class="text-[12px] font-semibold text-ink">LLM</span>
+      </div>
+      <div class="stage-node flex flex-col items-center text-center gap-2">
+        <div class="w-12 h-12 rounded-lg bg-canvas border border-hairline flex items-center justify-center shadow-sm">✅</div>
+        <span class="text-[12px] font-semibold text-ink">QA</span>
+      </div>
+      <div class="stage-node flex flex-col items-center text-center gap-2">
+        <div class="w-12 h-12 rounded-lg bg-canvas border border-hairline flex items-center justify-center shadow-sm">🔮</div>
+        <span class="text-[12px] font-semibold text-ink">Prediction</span>
+      </div>
+      <div class="stage-node flex flex-col items-center text-center gap-2">
+        <div class="w-12 h-12 rounded-lg bg-canvas border border-hairline flex items-center justify-center shadow-sm">📊</div>
+        <span class="text-[12px] font-semibold text-ink">Analytics</span>
+      </div>
+      <div class="stage-node flex flex-col items-center text-center gap-2">
+        <div class="w-12 h-12 rounded-lg bg-canvas border border-hairline flex items-center justify-center shadow-sm">📱</div>
+        <span class="text-[12px] font-semibold text-ink">Dashboards</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SOCIAL PROOF (logo marquee) ===== -->
+<section class="border-y border-hairlineSoft bg-surfaceSoft py-8 overflow-hidden">
+  <p class="text-center text-[13px] text-muted mb-6">Trusted by contact centers handling 40M+ calls a month</p>
+  <div class="relative w-full overflow-hidden">
+    <div class="marquee flex gap-16 w-max text-mutedSoft font-semibold text-[20px] display">
+      <span>NorthBank</span><span>Helix Health</span><span>Vellum</span><span>Cloudpeak</span><span>Meridian</span><span>Aria Telecom</span>
+      <span>NorthBank</span><span>Helix Health</span><span>Vellum</span><span>Cloudpeak</span><span>Meridian</span><span>Aria Telecom</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FEATURE CARDS (3-up, surface-card) ===== -->
+<section id="platform" class="max-w-content mx-auto px-6 py-20">
+  <div class="max-w-xl mb-12 reveal">
+    <h2 class="display d-lg text-ink">Built for every seat in the room</h2>
+    <p class="text-[16px] text-muted mt-3">Same design system, different priorities — admins, supervisors, analysts, agents, and execs each land where they need to.</p>
+  </div>
+  <div class="grid md:grid-cols-3 gap-6">
+    <div class="reveal d1 rounded-lg bg-surfaceCard p-8">
+      <div class="w-10 h-10 rounded-lg bg-canvas border border-hairline flex items-center justify-center mb-4">🛡️</div>
+      <h3 class="text-[18px] font-semibold text-ink mb-2">Compliance, automated</h3>
+      <p class="text-[15px] text-body">Every call scored against your policy. Violations flagged the moment they happen, with inline annotation and escalate actions.</p>
+    </div>
+    <div class="reveal d2 rounded-lg bg-surfaceCard p-8">
+      <div class="w-10 h-10 rounded-lg bg-canvas border border-hairline flex items-center justify-center mb-4">🔮</div>
+      <h3 class="text-[18px] font-semibold text-ink mb-2">Predict the outcome</h3>
+      <p class="text-[15px] text-body">Churn risk and escalation likelihood on a live confidence indicator — act before the call goes wrong, not after.</p>
+    </div>
+    <div class="reveal d3 rounded-lg bg-surfaceCard p-8">
+      <div class="w-10 h-10 rounded-lg bg-canvas border border-hairline flex items-center justify-center mb-4">🏷️</div>
+      <h3 class="text-[18px] font-semibold text-ink mb-2">White-label, multi-tenant</h3>
+      <p class="text-[15px] text-body">Your subdomain, your brand. <span class="font-mono text-[13px]">acme.sonic.ai</span> loads tenant colors and logo before login.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PRODUCT MOCKUP BAND (KPI count-ups + chart) ===== -->
+<section class="max-w-content mx-auto px-6 pb-20">
+  <div class="rounded-xl border border-hairline bg-canvas p-8 grid lg:grid-cols-12 gap-8 items-center reveal">
+    <div class="lg:col-span-5">
+      <span class="text-[13px] font-medium text-ink bg-surfaceCard rounded-full px-3 py-1">Executive Analytics</span>
+      <h3 class="display d-md text-ink mt-4">The whole operation, at a glance</h3>
+      <p class="text-[15px] text-body mt-3">Cross-team KPIs, predictive risk widgets, and cohort filters — exportable, drillable, always current.</p>
+    </div>
+    <div class="lg:col-span-7 grid grid-cols-3 gap-4">
+      <div class="rounded-lg bg-surfaceCard p-4">
+        <div class="text-[12px] text-muted">Calls analyzed</div>
+        <div class="display d-sm text-ink" data-count="41283" data-suffix="">0</div>
+      </div>
+      <div class="rounded-lg bg-surfaceCard p-4">
+        <div class="text-[12px] text-muted">Compliance pass</div>
+        <div class="display d-sm text-success" data-count="96" data-suffix="%">0%</div>
+      </div>
+      <div class="rounded-lg bg-surfaceCard p-4">
+        <div class="text-[12px] text-muted">Avg. sentiment</div>
+        <div class="display d-sm ai-text" data-count="82" data-suffix="">0</div>
+      </div>
+      <div class="col-span-3 rounded-lg bg-surfaceCard p-4">
+        <svg class="spark in w-full h-24" viewBox="0 0 600 90" fill="none" preserveAspectRatio="none">
+          <defs><linearGradient id="g2" x1="0" x2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+          <path d="M0,70 C80,60 120,30 200,40 C280,50 320,15 400,25 C480,35 520,12 600,18" stroke="url(#g2)" stroke-width="3"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PRICING (4-up, dark featured tier) ===== -->
+<section id="pricing" class="max-w-content mx-auto px-6 py-20">
+  <div class="text-center mb-12 reveal">
+    <h2 class="display d-lg text-ink">Pricing that scales with your floor</h2>
+    <p class="text-[16px] text-muted mt-3">Start free. Upgrade when your call volume does.</p>
+  </div>
+  <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="reveal d1 rounded-lg border border-hairline bg-canvas p-8">
+      <h3 class="text-[22px] font-semibold text-ink">Starter</h3>
+      <div class="display d-sm text-ink mt-2">$0</div>
+      <p class="text-[13px] text-muted mb-5">Up to 500 calls/mo</p>
+      <a href="#" class="block text-center h-10 leading-10 font-semibold text-ink border border-hairline rounded-md hover:bg-surfaceSoft">Start free</a>
+    </div>
+    <div class="reveal d2 rounded-lg border border-hairline bg-canvas p-8">
+      <h3 class="text-[22px] font-semibold text-ink">Team</h3>
+      <div class="display d-sm text-ink mt-2">$499</div>
+      <p class="text-[13px] text-muted mb-5">Up to 25k calls/mo</p>
+      <a href="#" class="block text-center h-10 leading-10 font-semibold text-ink border border-hairline rounded-md hover:bg-surfaceSoft">Choose Team</a>
+    </div>
+    <!-- featured: dark surface -->
+    <div class="reveal d3 rounded-lg bg-surfaceDark text-onDark p-8 relative overflow-hidden">
+      <div class="absolute inset-x-0 top-0 h-1 ai-gradient"></div>
+      <h3 class="text-[22px] font-semibold">Business</h3>
+      <div class="display d-sm mt-2">$1,499</div>
+      <p class="text-[13px] text-onDarkSoft mb-5">Up to 150k calls/mo</p>
+      <a href="#" class="block text-center h-10 leading-10 font-semibold text-ink bg-canvas rounded-md hover:bg-surfaceCard">Choose Business</a>
+    </div>
+    <div class="reveal d4 rounded-lg border border-hairline bg-canvas p-8">
+      <h3 class="text-[22px] font-semibold text-ink">Enterprise</h3>
+      <div class="display d-sm text-ink mt-2">Custom</div>
+      <p class="text-[13px] text-muted mb-5">Unlimited + SSO</p>
+      <a href="#" class="block text-center h-10 leading-10 font-semibold text-ink border border-hairline rounded-md hover:bg-surfaceSoft">Talk to sales</a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CTA BAND (light) ===== -->
+<section class="max-w-content mx-auto px-6 pb-20">
+  <div class="rounded-lg bg-surfaceCard p-12 text-center reveal">
+    <h2 class="display d-sm text-ink">Hear what your calls are really saying.</h2>
+    <p class="text-[16px] text-muted mt-2 mb-6">Set up your subdomain in under 5 minutes.</p>
+    <a href="#" class="h-11 px-7 inline-flex items-center font-semibold text-onDark bg-ink rounded-md hover:bg-[#242424] transition">Start free</a>
+  </div>
+</section>
+
+<!-- ===== FOOTER (dark, closes the page) ===== -->
+<footer class="bg-surfaceDark text-onDarkSoft">
+  <div class="max-w-content mx-auto px-6 py-16 grid grid-cols-2 md:grid-cols-5 gap-8">
+    <div class="col-span-2 md:col-span-1">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-6 h-6 rounded-full ai-gradient"></div>
+        <span class="display text-onDark text-[16px]">Sonic</span>
+      </div>
+      <p class="text-[13px]">Conversation intelligence for the modern contact center.</p>
+    </div>
+    <div><div class="text-onDark font-semibold text-[14px] mb-3">Product</div><ul class="space-y-2 text-[14px]"><li>Pipeline</li><li>Analytics</li><li>Compliance</li><li>Predictions</li></ul></div>
+    <div><div class="text-onDark font-semibold text-[14px] mb-3">Solutions</div><ul class="space-y-2 text-[14px]"><li>Healthcare</li><li>Financial</li><li>Telecom</li><li>Retail</li></ul></div>
+    <div><div class="text-onDark font-semibold text-[14px] mb-3">Company</div><ul class="space-y-2 text-[14px]"><li>About</li><li>Security</li><li>Careers</li><li>Contact</li></ul></div>
+    <div><div class="text-onDark font-semibold text-[14px] mb-3">Resources</div><ul class="space-y-2 text-[14px]"><li>Docs</li><li>API</li><li>Status</li><li>Changelog</li></ul></div>
+  </div>
+  <div class="border-t border-surfaceDarkEl">
+    <div class="max-w-content mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-[13px] text-mutedSoft">
+      <span>© 2026 Sonic AI, Inc.</span>
+      <span class="flex gap-4"><a href="#">Privacy</a><a href="#">Terms</a><a href="#">DPA</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // reveal on scroll
+  const io = new IntersectionObserver((es)=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }), {threshold:.15});
+  document.querySelectorAll('.reveal, .spark').forEach(el=>io.observe(el));
+
+  // count-up KPIs
+  const fmt = n => n.toLocaleString('en-US');
+  const countUp = el => {
+    const target = +el.dataset.count, suffix = el.dataset.suffix||'';
+    const dur = 1400, t0 = performance.now();
+    const step = t => { const p = Math.min((t-t0)/dur,1); const ease = 1-Math.pow(1-p,3);
+      el.textContent = fmt(Math.round(target*ease))+suffix; if(p<1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  };
+  const cio = new IntersectionObserver((es)=>es.forEach(e=>{ if(e.isIntersecting){ countUp(e.target); cio.unobserve(e.target);} }), {threshold:.6});
+  document.querySelectorAll('[data-count]').forEach(el=>cio.observe(el));
+</script>
+</body>
+</html>
