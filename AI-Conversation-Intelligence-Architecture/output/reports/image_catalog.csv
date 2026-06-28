@@ -1,0 +1,60 @@
+id,section,png,doc_page,purpose
+01,System Overview,diagrams/png/01_System_Overview/01_System_Context_Diagram.png,docs/diagrams/01_System_Overview/01_System_Context_Diagram.md,Establish the system boundary and external actors.
+02,System Overview,diagrams/png/01_System_Overview/02_High_Level_Architecture.png,docs/diagrams/01_System_Overview/02_High_Level_Architecture.md,Show the major layers and how they compose end to end.
+03,System Overview,diagrams/png/01_System_Overview/03_Container_Diagram.png,docs/diagrams/01_System_Overview/03_Container_Diagram.md,C4 Level-2 container decomposition.
+04,System Overview,diagrams/png/01_System_Overview/04_Microservice_Dependency.png,docs/diagrams/01_System_Overview/04_Microservice_Dependency.md,Map dependencies between microservices.
+05,System Overview,diagrams/png/01_System_Overview/05_Service_Communication.png,docs/diagrams/01_System_Overview/05_Service_Communication.md,Define inter-service communication patterns.
+06,System Overview,diagrams/png/01_System_Overview/06_Call_Processing_Overview.png,docs/diagrams/01_System_Overview/06_Call_Processing_Overview.md,Summarize the lifecycle of a single call.
+07,System Overview,diagrams/png/01_System_Overview/07_AI_Service_Architecture.png,docs/diagrams/01_System_Overview/07_AI_Service_Architecture.md,Architecture of the AI service plane.
+08,System Overview,diagrams/png/01_System_Overview/08_Dashboard_Modules.png,docs/diagrams/01_System_Overview/08_Dashboard_Modules.md,Catalogue the dashboard modules.
+09,System Overview,diagrams/png/01_System_Overview/09_Analytics_Architecture.png,docs/diagrams/01_System_Overview/09_Analytics_Architecture.md,Analytics platform architecture.
+10,System Overview,diagrams/png/01_System_Overview/10_Overall_Data_Flow.png,docs/diagrams/01_System_Overview/10_Overall_Data_Flow.md,Overall data flow across the platform.
+11,AI Pipeline,diagrams/png/02_AI_Pipeline/11_End_to_End_AI_Pipeline.png,docs/diagrams/02_AI_Pipeline/11_End_to_End_AI_Pipeline.md,End-to-end AI processing pipeline.
+12,AI Pipeline,diagrams/png/02_AI_Pipeline/12_Audio_Processing.png,docs/diagrams/02_AI_Pipeline/12_Audio_Processing.md,Audio pre-processing stage.
+13,AI Pipeline,diagrams/png/02_AI_Pipeline/13_Speech_Recognition.png,docs/diagrams/02_AI_Pipeline/13_Speech_Recognition.md,Automatic speech recognition.
+14,AI Pipeline,diagrams/png/02_AI_Pipeline/14_Speaker_Diarization.png,docs/diagrams/02_AI_Pipeline/14_Speaker_Diarization.md,Speaker diarization.
+15,AI Pipeline,diagrams/png/02_AI_Pipeline/15_Emotion_Recognition.png,docs/diagrams/02_AI_Pipeline/15_Emotion_Recognition.md,Emotion / affect recognition.
+16,AI Pipeline,diagrams/png/02_AI_Pipeline/16_NLP_Pipeline.png,docs/diagrams/02_AI_Pipeline/16_NLP_Pipeline.md,Core NLP processing.
+17,AI Pipeline,diagrams/png/02_AI_Pipeline/17_Intent_Detection.png,docs/diagrams/02_AI_Pipeline/17_Intent_Detection.md,Intent detection.
+18,AI Pipeline,diagrams/png/02_AI_Pipeline/18_Sentiment_Analysis.png,docs/diagrams/02_AI_Pipeline/18_Sentiment_Analysis.md,Sentiment analysis.
+19,AI Pipeline,diagrams/png/02_AI_Pipeline/19_Topic_Modeling.png,docs/diagrams/02_AI_Pipeline/19_Topic_Modeling.md,Topic modelling.
+20,AI Pipeline,diagrams/png/02_AI_Pipeline/20_Named_Entity_Recognition.png,docs/diagrams/02_AI_Pipeline/20_Named_Entity_Recognition.md,Named-entity recognition.
+21,AI Pipeline,diagrams/png/02_AI_Pipeline/21_Keyword_Extraction.png,docs/diagrams/02_AI_Pipeline/21_Keyword_Extraction.md,Keyword / keyphrase extraction.
+22,AI Pipeline,diagrams/png/02_AI_Pipeline/22_Conversation_Intelligence.png,docs/diagrams/02_AI_Pipeline/22_Conversation_Intelligence.md,Conversation intelligence fusion.
+23,AI Pipeline,diagrams/png/02_AI_Pipeline/23_LLM_Orchestration.png,docs/diagrams/02_AI_Pipeline/23_LLM_Orchestration.md,LLM orchestration.
+24,AI Pipeline,diagrams/png/02_AI_Pipeline/24_QA_Evaluation.png,docs/diagrams/02_AI_Pipeline/24_QA_Evaluation.md,QA evaluation & compliance scoring.
+25,AI Pipeline,diagrams/png/02_AI_Pipeline/25_Business_Intelligence.png,docs/diagrams/02_AI_Pipeline/25_Business_Intelligence.md,Business intelligence pipeline.
+26,AI Pipeline,diagrams/png/02_AI_Pipeline/26_Prediction_Engine.png,docs/diagrams/02_AI_Pipeline/26_Prediction_Engine.md,Prediction engine.
+27,AI Pipeline,diagrams/png/02_AI_Pipeline/27_Coaching_Recommendation.png,docs/diagrams/02_AI_Pipeline/27_Coaching_Recommendation.md,Coaching recommendation engine.
+28,AI Pipeline,diagrams/png/02_AI_Pipeline/28_Analytics_Aggregation.png,docs/diagrams/02_AI_Pipeline/28_Analytics_Aggregation.md,Analytics aggregation.
+29,AI Pipeline,diagrams/png/02_AI_Pipeline/29_AI_Decision_Engine.png,docs/diagrams/02_AI_Pipeline/29_AI_Decision_Engine.md,AI decision engine.
+30,AI Pipeline,diagrams/png/02_AI_Pipeline/30_Complete_AI_Pipeline.png,docs/diagrams/02_AI_Pipeline/30_Complete_AI_Pipeline.md,Complete AI pipeline (consolidated).
+31,Data Architecture,diagrams/png/03_Data_Architecture/31_Database_Architecture.png,docs/diagrams/03_Data_Architecture/31_Database_Architecture.md,Database architecture overview.
+32,Data Architecture,diagrams/png/03_Data_Architecture/32_ER_Diagram.png,docs/diagrams/03_Data_Architecture/32_ER_Diagram.md,Operational entity-relationship model.
+33,Data Architecture,diagrams/png/03_Data_Architecture/33_Analytics_ERD.png,docs/diagrams/03_Data_Architecture/33_Analytics_ERD.md,Analytics / warehouse data model.
+34,Data Architecture,diagrams/png/03_Data_Architecture/34_Feature_Store.png,docs/diagrams/03_Data_Architecture/34_Feature_Store.md,Feature store architecture.
+35,Data Architecture,diagrams/png/03_Data_Architecture/35_Vector_Search.png,docs/diagrams/03_Data_Architecture/35_Vector_Search.md,Vector search architecture.
+36,Data Architecture,diagrams/png/03_Data_Architecture/36_Object_Storage.png,docs/diagrams/03_Data_Architecture/36_Object_Storage.md,Object storage architecture.
+37,Data Architecture,diagrams/png/03_Data_Architecture/37_Metadata_Storage.png,docs/diagrams/03_Data_Architecture/37_Metadata_Storage.md,Metadata storage.
+38,Data Architecture,diagrams/png/03_Data_Architecture/38_Cache_Architecture.png,docs/diagrams/03_Data_Architecture/38_Cache_Architecture.md,Cache architecture.
+39,Data Architecture,diagrams/png/03_Data_Architecture/39_Analytics_Warehouse.png,docs/diagrams/03_Data_Architecture/39_Analytics_Warehouse.md,Analytics warehouse.
+40,Data Architecture,diagrams/png/03_Data_Architecture/40_Data_Lifecycle.png,docs/diagrams/03_Data_Architecture/40_Data_Lifecycle.md,Data lifecycle & retention.
+41,Backend & API,diagrams/png/04_Backend/41_API_Gateway.png,docs/diagrams/04_Backend/41_API_Gateway.md,API gateway architecture.
+42,Backend & API,diagrams/png/04_Backend/42_Upload_API.png,docs/diagrams/04_Backend/42_Upload_API.md,Upload API & ingestion.
+43,Backend & API,diagrams/png/04_Backend/43_Processing_Sequence.png,docs/diagrams/04_Backend/43_Processing_Sequence.md,Processing sequence (timing).
+44,Backend & API,diagrams/png/04_Backend/44_Dashboard_Request.png,docs/diagrams/04_Backend/44_Dashboard_Request.md,Dashboard request lifecycle.
+45,Backend & API,diagrams/png/04_Backend/45_Report_Generation.png,docs/diagrams/04_Backend/45_Report_Generation.md,Report generation.
+46,Backend & API,diagrams/png/04_Backend/46_Event_Driven_Backend.png,docs/diagrams/04_Backend/46_Event_Driven_Backend.md,Event-driven backend.
+47,Backend & API,diagrams/png/04_Backend/47_Backend_Service_Dependency.png,docs/diagrams/04_Backend/47_Backend_Service_Dependency.md,Backend service dependency map.
+48,Backend & API,diagrams/png/04_Backend/48_Authentication.png,docs/diagrams/04_Backend/48_Authentication.md,Authentication flow.
+49,Backend & API,diagrams/png/04_Backend/49_RBAC.png,docs/diagrams/04_Backend/49_RBAC.md,Role-based access control.
+50,Backend & API,diagrams/png/04_Backend/50_Backend_Overview.png,docs/diagrams/04_Backend/50_Backend_Overview.md,Backend overview.
+P6,Product & Program Views,diagrams/png/05_Product/P6_Dashboard_Business_Analytics.png,docs/diagrams/05_Product/P6_Dashboard_Business_Analytics.md,Dashboard & business-analytics program board.
+P7,Product & Program Views,diagrams/png/05_Product/P7_AI_Models.png,docs/diagrams/05_Product/P7_AI_Models.md,AI models program board.
+P8,Product & Program Views,diagrams/png/05_Product/P8_ML_MLOps.png,docs/diagrams/05_Product/P8_ML_MLOps.md,ML & MLOps program board.
+P9,Product & Program Views,diagrams/png/05_Product/P9_Operational_Flow.png,docs/diagrams/05_Product/P9_Operational_Flow.md,Operational flow program board.
+P10,Product & Program Views,diagrams/png/05_Product/P10_Documentation.png,docs/diagrams/05_Product/P10_Documentation.md,Documentation program board.
+P11,Product & Program Views,diagrams/png/05_Product/P11_Database_Program_View.png,docs/diagrams/05_Product/P11_Database_Program_View.md,Database program board.
+P12,Product & Program Views,diagrams/png/05_Product/P12_Infrastructure.png,docs/diagrams/05_Product/P12_Infrastructure.md,Infrastructure program board.
+P13,Product & Program Views,diagrams/png/05_Product/P13_Security.png,docs/diagrams/05_Product/P13_Security.md,Security program board.
+P14,Product & Program Views,diagrams/png/05_Product/P14_Product_Features.png,docs/diagrams/05_Product/P14_Product_Features.md,Product features program board.
