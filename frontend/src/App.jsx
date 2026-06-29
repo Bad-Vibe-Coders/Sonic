@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import ScrollToTop from './components/ScrollToTop'
 import Spotlight from './components/Spotlight'
 import AppShell from './layouts/AppShell'
 import AdminShell from './layouts/AdminShell'
@@ -29,6 +30,7 @@ import { PlatformOverview, PlatformTenants, PlatformBilling, PlatformHealth } fr
 export default function App() {
   return (
     <>
+    <ScrollToTop />
     <Spotlight />
     <Routes>
       {/* marketing + auth */}
