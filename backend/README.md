@@ -11,8 +11,10 @@ completes on a dev laptop with no GPU, no ffmpeg, and no API keys.
 ## Stack
 
 FastAPI + Pydantic v2 · SQLAlchemy 2 (async) + Alembic · PostgreSQL (+pgvector, RLS)
-· Celery + Redis · MinIO (S3) with local-dir fallback · Anthropic API (Claude) ·
-faster-whisper / pyannote / SpeechBrain / spaCy (optional `ml` extra).
+· Celery + Redis · MinIO (S3) with local-dir fallback · **Ollama (Mistral 7B)** for LLM
+analysis (Anthropic/Claude available via `SONIC_LLM_PROVIDER=anthropic`) ·
+**BanglaSpeech2Text** for transcription (faster-whisper as secondary backend) ·
+pyannote / SpeechBrain / spaCy (optional `ml` extra).
 
 ## Local dev
 
@@ -64,10 +66,15 @@ curl -s -X POST localhost:8000/api/v1/conversations -H "Authorization: Bearer $T
 
 - State machine per conversation: `uploaded → processing(stage) → completed | failed(stage)`;
   per-stage status/duration recorded in `stage_runs` (`ok`/`fallback`/`skipped`/`failed`).
-- Stage 6 (LLM) uses the Anthropic API (`SONIC_LLM_MODEL`, default `claude-sonnet-5`) with
-  structured JSON output; without `ANTHROPIC_API_KEY` it records `skipped_no_key`.
-- Stage 7 (QA) always runs the YAML rules engine (`rules/qa_rules.yaml`); an LLM judge
-  refines the score when a key is present.
+- Stage 2 (ASR) uses [BanglaSpeech2Text](https://github.com/shhossain/BanglaSpeech2Text)
+  (`SONIC_ASR_BACKEND=banglaspeech2text`, model size via `SONIC_ASR_MODEL`); falls back to
+  faster-whisper, then to an empty transcript when neither is installed.
+- Stage 6 (LLM) calls a local Ollama server (`SONIC_LLM_PROVIDER=ollama`, default model
+  `mistral` = Mistral 7B) with schema-constrained JSON output; if Ollama is unreachable
+  the stage records `skipped`. Set `SONIC_LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`
+  to use Claude instead. Run `ollama pull mistral` once before first use.
+- Stage 7 (QA) always runs the YAML rules engine (`rules/qa_rules.yaml`); the same LLM
+  provider refines the score as an LLM judge when reachable.
 - Events flow through `app/core/events.py` (Redis pub/sub today; the abstraction is the
   seam for Kafka later).
 - Tenant isolation: every table carries `tenant_id`, all queries filter on it, and

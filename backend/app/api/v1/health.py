@@ -11,6 +11,15 @@ from app.core.db import async_engine
 router = APIRouter(tags=["health"])
 
 
+def _ollama_reachable(settings) -> bool:
+    import httpx
+
+    try:
+        return httpx.get(f"{settings.ollama_base_url}/api/tags", timeout=2.0).status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
 @router.get("/health")
 async def health():
     try:
@@ -41,15 +50,19 @@ async def pipeline_health():
         "broker_redis": redis_ok,
         "stages": {
             "audio": {"enabled": True, "ffmpeg": shutil.which("ffmpeg") is not None},
-            "asr": {"enabled": s.enable_asr, "faster_whisper": installed("faster_whisper")},
+            "asr": {"enabled": s.enable_asr, "backend": s.asr_backend,
+                    "banglaspeech2text": installed("banglaspeech2text"),
+                    "faster_whisper": installed("faster_whisper")},
             "diarization": {"enabled": s.enable_diarization,
                             "pyannote": installed("pyannote"),
                             "hf_token": bool(os.environ.get("HF_TOKEN"))},
             "emotion": {"enabled": s.enable_emotion, "speechbrain": installed("speechbrain")},
             "nlp": {"enabled": s.enable_nlp, "spacy": installed("spacy")},
             "llm": {"enabled": s.enable_llm,
-                    "anthropic_key": bool(os.environ.get("ANTHROPIC_API_KEY")),
-                    "model": s.llm_model},
+                    "provider": s.llm_provider,
+                    "model": s.llm_model,
+                    "ollama_reachable": _ollama_reachable(s) if s.llm_provider == "ollama" else None,
+                    "anthropic_key": bool(os.environ.get("ANTHROPIC_API_KEY"))},
             "qa": {"enabled": s.enable_qa, "rules_file": os.path.exists(s.qa_rules_path)},
             "prediction": {"enabled": s.enable_prediction, "model": "heuristic-v0"},
             "analytics": {"enabled": True},

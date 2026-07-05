@@ -7,7 +7,6 @@ heavy dependency is imported lazily and guarded by a feature flag + fallback.
 Raising marks the conversation failed at that stage.
 """
 import io
-import json
 import logging
 import shutil
 import subprocess
@@ -81,25 +80,45 @@ def _wav_duration(data: bytes) -> float | None:
 
 # ---------------------------------------------------------------- 2. ASR
 def stage_asr(db: Session, conv: Conversation):
+    """Transcription. Primary backend: BanglaSpeech2Text (Bangla, whisper-based,
+    https://github.com/shhossain/BanglaSpeech2Text). Secondary: faster-whisper.
+    Fallback when neither is installed: empty transcript so the chain completes."""
     if not _flag("enable_asr"):
         return "skipped", "disabled by flag"
     if not conv.processed_audio_key:
         return "skipped", "no audio to transcribe"
-    try:
-        from faster_whisper import WhisperModel
-    except ImportError:
-        # Fallback: no ASR model available. Keep any transcript already set
-        # (e.g. seeded/test data) and let downstream stages run on it.
-        conv.transcript = conv.transcript or ""
-        return "fallback", "faster-whisper not installed; empty transcript"
 
-    storage = get_storage()
-    data = storage.get(conv.processed_audio_key)
-    model = WhisperModel(get_settings().asr_model, device="auto", compute_type="auto")
+    settings = get_settings()
+    data = get_storage().get(conv.processed_audio_key)
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
         f.write(data)
         path = f.name
     try:
+        if settings.asr_backend == "banglaspeech2text":
+            try:
+                from banglaspeech2text import Speech2Text
+
+                stt = Speech2Text(settings.asr_model)  # tiny|base|small|large
+                text = (stt.recognize(path) or "").strip()
+                conv.transcript = text
+                if text:
+                    db.add(Segment(
+                        tenant_id=conv.tenant_id, conversation_id=conv.id,
+                        start=0.0, end=conv.duration_seconds or 0.0, text=text,
+                    ))
+                return "ok", f"transcribed with BanglaSpeech2Text/{settings.asr_model}"
+            except ImportError:
+                logger.warning("banglaspeech2text not installed; trying faster-whisper")
+
+        try:
+            from faster_whisper import WhisperModel
+        except ImportError:
+            # Keep any transcript already set (seeded/test data) and let
+            # downstream stages run on it.
+            conv.transcript = conv.transcript or ""
+            return "fallback", "no ASR backend installed; empty transcript"
+
+        model = WhisperModel(settings.asr_model, device="auto", compute_type="auto")
         segments, _info = model.transcribe(path)
         parts = []
         for s in segments:
@@ -109,9 +128,9 @@ def stage_asr(db: Session, conv: Conversation):
                 start=s.start, end=s.end, text=s.text.strip(),
             ))
         conv.transcript = " ".join(parts)
+        return "ok", f"transcribed with faster-whisper/{settings.asr_model}"
     finally:
         Path(path).unlink(missing_ok=True)
-    return "ok", f"transcribed with faster-whisper/{get_settings().asr_model}"
 
 
 # ---------------------------------------------------------------- 3. diarization
@@ -256,34 +275,22 @@ def stage_llm(db: Session, conv: Conversation):
     if not (conv.transcript or "").strip():
         return "skipped", "empty transcript"
 
-    import os
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return "skipped_no_key", "ANTHROPIC_API_KEY not set"
+    from app.services.llm import LLMUnavailable, generate_json
 
-    import anthropic
-
-    client = anthropic.Anthropic()
+    settings = get_settings()
     try:
-        response = client.messages.create(
-            model=get_settings().llm_model,
-            max_tokens=2048,
+        conv.llm_summary = generate_json(
+            prompt=(
+                "Analyze this call transcript. Summarize it, classify overall "
+                "customer sentiment, list action items, and list topics.\n\n"
+                f"<transcript>\n{conv.transcript[:100000]}\n</transcript>"
+            ),
+            schema=LLM_SCHEMA,
             system="You analyze call-center conversation transcripts for a conversation-intelligence platform.",
-            output_config={"format": {"type": "json_schema", "schema": LLM_SCHEMA}},
-            messages=[{
-                "role": "user",
-                "content": f"Analyze this call transcript. Summarize it, classify overall customer sentiment, list action items, and list topics.\n\n<transcript>\n{conv.transcript[:100000]}\n</transcript>",
-            }],
         )
-    except anthropic.APIStatusError as exc:
-        return "skipped", f"anthropic API error {exc.status_code}: {exc.message}"
-    except anthropic.APIConnectionError:
-        return "skipped", "anthropic API unreachable"
-
-    if response.stop_reason == "refusal":
-        return "skipped", "model refused"
-    text = next((b.text for b in response.content if b.type == "text"), "")
-    conv.llm_summary = json.loads(text)
-    return "ok", f"analyzed with {get_settings().llm_model}"
+    except LLMUnavailable as exc:
+        return "skipped", str(exc)
+    return "ok", f"analyzed with {settings.llm_provider}/{settings.llm_model}"
 
 
 # ---------------------------------------------------------------- 7. QA
@@ -294,16 +301,17 @@ def stage_qa(db: Session, conv: Conversation):
     rules = qa_rules.load_rules(get_settings().qa_rules_path)
     result = qa_rules.evaluate(transcript, rules)
     result["source"] = "rules_engine"
-    # LLM-as-judge refinement when a key is present (best-effort).
-    import os
-    if os.environ.get("ANTHROPIC_API_KEY") and transcript.strip():
+    # LLM-as-judge refinement when a provider is reachable (best-effort).
+    if transcript.strip():
+        from app.services.llm import LLMUnavailable, generate_json
         try:
-            import anthropic
-            client = anthropic.Anthropic()
-            resp = client.messages.create(
-                model=get_settings().llm_model,
-                max_tokens=1024,
-                output_config={"format": {"type": "json_schema", "schema": {
+            result["llm_judge"] = generate_json(
+                prompt=(
+                    "As a call-QA judge, score this transcript's compliance and "
+                    "professionalism 0-100 and list issues.\n\n"
+                    f"<transcript>\n{transcript[:50000]}\n</transcript>"
+                ),
+                schema={
                     "type": "object",
                     "properties": {
                         "compliance_score": {"type": "integer"},
@@ -311,15 +319,11 @@ def stage_qa(db: Session, conv: Conversation):
                     },
                     "required": ["compliance_score", "issues"],
                     "additionalProperties": False,
-                }}},
-                messages=[{"role": "user", "content":
-                    "As a call-QA judge, score this transcript's compliance and professionalism 0-100 "
-                    f"and list issues.\n\n<transcript>\n{transcript[:50000]}\n</transcript>"}],
+                },
             )
-            if resp.stop_reason != "refusal":
-                judged = json.loads(next(b.text for b in resp.content if b.type == "text"))
-                result["llm_judge"] = judged
-                result["source"] = "rules_engine+llm_judge"
+            result["source"] = "rules_engine+llm_judge"
+        except LLMUnavailable:
+            pass
         except Exception as exc:
             logger.warning("LLM judge failed: %s", exc)
     conv.qa_result = result

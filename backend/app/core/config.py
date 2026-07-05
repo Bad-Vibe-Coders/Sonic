@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     # pipeline feature flags
     enable_asr: bool = True
+    asr_backend: str = "banglaspeech2text"  # "banglaspeech2text" | "faster-whisper"
     asr_model: str = "base"
     enable_diarization: bool = True
     enable_emotion: bool = True
@@ -36,7 +37,10 @@ class Settings(BaseSettings):
     enable_prediction: bool = True
     enable_indexing: bool = True
 
-    llm_model: str = "claude-sonnet-5"
+    llm_provider: str = "ollama"  # "ollama" | "anthropic"
+    llm_model: str = "mistral"    # Ollama tag (Mistral 7B) or Claude model id
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_timeout_seconds: float = 120.0
     qa_rules_path: str = "rules/qa_rules.yaml"
 
     @property

@@ -28,6 +28,7 @@ dependencies = [
 [project.optional-dependencies]
 # Heavy ML stages — each is feature-flagged with a cheap fallback when absent.
 ml = [
+    "banglaspeech2text>=1.0",
     "faster-whisper>=1.0",
     "pyannote.audio>=3.1",
     "speechbrain>=1.0",
