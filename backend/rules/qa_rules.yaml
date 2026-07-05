@@ -1,0 +1,13 @@
+# QA / compliance rules evaluated against every transcript (stage 7).
+banned_phrases:
+  - name: no-guaranteed-returns
+    phrase: "guaranteed returns"
+    weight: 2
+  - name: no-profanity-damn
+    phrase: "damn"
+    weight: 1
+
+required_disclosures:
+  - name: call-recording-disclosure
+    phrase: "this call may be recorded"
+    weight: 2
