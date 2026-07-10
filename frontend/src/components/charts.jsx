@@ -18,6 +18,7 @@ export function AreaChart({ data, height = 90, stroke = 'ai', className = '' }) 
   const [ref, seen] = useInView()
   const id = useRef(uid()).current
   const w = 600
+  if (!data?.length) data = [0, 0]
   const max = Math.max(...data), min = Math.min(...data)
   const pts = data.map((d, i) => [(i / (data.length - 1)) * w, height - 8 - ((d - min) / (max - min || 1)) * (height - 16)])
   const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
@@ -39,7 +40,8 @@ export function AreaChart({ data, height = 90, stroke = 'ai', className = '' }) 
 export function BarChart({ data, height = 120, labels = [], format = (v) => Math.round(v).toLocaleString('en-US') }) {
   const [ref, seen] = useInView()
   const [hover, setHover] = useState(null)
-  const max = Math.max(...data)
+  if (!data?.length) data = labels.length ? labels.map(() => 0) : [0]
+  const max = Math.max(...data) || 1
   return (
     <div ref={ref} className="flex items-end gap-2" style={{ height }}>
       {data.map((d, i) => (

@@ -96,6 +96,19 @@ export function uploadConversation(file, title) {
 
 // ---- Analytics / search / health ----
 export const analyticsOverview = () => request('/analytics/overview')
+export const analyticsVolume = (days = 14) => request(`/analytics/volume?days=${days}`)
+export const analyticsCompliance = () => request('/analytics/compliance')
+export const analyticsRisks = () => request('/analytics/risks')
+export const analyticsAgents = () => request('/analytics/agents')
+
+// ---- Notifications ----
+export const listNotifications = () => request('/notifications')
+export const markNotificationRead = (id) => request(`/notifications/${id}/read`, { method: 'POST' })
+export const markAllNotificationsRead = () => request('/notifications/read-all', { method: 'POST' })
+
+// ---- Platform (cross-tenant admin) ----
+export const platformTenants = () => request('/platform/tenants')
+export const platformOverview = () => request('/platform/overview')
 export const search = (q) => request(`/search?q=${encodeURIComponent(q)}`)
 export const health = () => request('/health')
 export const pipelineHealth = () => request('/health/pipeline')

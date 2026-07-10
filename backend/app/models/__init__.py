@@ -48,6 +48,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.agent)
+    platform_admin: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     tenant: Mapped[Tenant] = relationship(back_populates="users")
@@ -126,6 +127,30 @@ class StageRun(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     conversation: Mapped[Conversation] = relationship(back_populates="stage_runs")
+
+
+class NotificationKind(str, enum.Enum):
+    error = "error"
+    warning = "warning"
+    info = "info"
+    success = "success"
+
+
+class Notification(Base):
+    """Auto-generated alerts surfaced from pipeline events (QA failures, risk spikes, etc)."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    conversation_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("conversations.id"), nullable=True
+    )
+    kind: Mapped[NotificationKind] = mapped_column(Enum(NotificationKind), default=NotificationKind.info)
+    title: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text)
+    read: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
 
 
 class TenantMetrics(Base):

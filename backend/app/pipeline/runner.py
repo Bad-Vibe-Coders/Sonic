@@ -4,7 +4,7 @@ import time
 
 from app.core.db import SyncSessionLocal
 from app.core.events import publish_pipeline_event
-from app.models import Conversation, ConversationStatus, StageRun
+from app.models import Conversation, ConversationStatus, Notification, NotificationKind, StageRun
 from app.pipeline.stages import STAGE_NAMES, STAGES
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,11 @@ def run_stage(conversation_id: str, stage: str) -> bool:
                 tenant_id=conv.tenant_id, conversation_id=conv.id, stage=stage,
                 status="failed", detail=str(exc),
                 duration_ms=int((time.monotonic() - started) * 1000),
+            ))
+            db.add(Notification(
+                tenant_id=conv.tenant_id, conversation_id=conv.id,
+                kind=NotificationKind.error, title="Pipeline stage failed",
+                body=f"{conv.title}: {stage} failed — {exc}",
             ))
             db.commit()
             logger.exception("stage %s failed for %s", stage, conversation_id)

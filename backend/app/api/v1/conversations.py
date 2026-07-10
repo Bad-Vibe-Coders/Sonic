@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_tenant_db
-from app.models import Conversation, User
+from app.models import Conversation, ConversationStatus, User
 from app.schemas import ConversationDetail, ConversationSummary
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
@@ -37,12 +37,22 @@ async def upload_conversation(
 
     from app.services.storage import get_storage
     key = f"{user.tenant_id}/{conv.id}/original/{file.filename or 'audio'}"
-    get_storage().put(key, data)
+    try:
+        get_storage().put(key, data)
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Storage unavailable: {exc}")
     conv.audio_key = key
     await db.commit()
 
     from app.workers.tasks import dispatch_pipeline
-    dispatch_pipeline(conv.id)
+    try:
+        dispatch_pipeline(conv.id)
+    except Exception as exc:
+        conv.status = ConversationStatus.failed
+        conv.error = f"Failed to queue pipeline: {exc}"
+        await db.commit()
+
     return conv
 
 

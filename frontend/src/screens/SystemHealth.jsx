@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, SectionTitle, StatusChip, Reveal } from '../components/ui'
-import { AreaChart } from '../components/charts'
 import Pipeline from '../components/Pipeline'
-import { HEALTH } from '../lib/data'
+import { PIPELINE } from '../lib/data'
 import { pipelineHealth } from '../lib/api'
 import Icon from '../components/Icon'
 
@@ -17,13 +16,21 @@ function stateOf(stage) {
 }
 
 export default function SystemHealth() {
-  const [health, setHealth] = useState(HEALTH)
+  const [health, setHealth] = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     pipelineHealth()
-      .then(data => setHealth(HEALTH.map(s => ({ ...s, state: stateOf(data.stages[STAGE_KEY[s.id]]) }))))
-      .catch(() => {}) // backend unreachable — keep demo data
+      .then(data => { setHealth(PIPELINE.map(s => ({ ...s, state: stateOf(data.stages[STAGE_KEY[s.id]]), detail: data.stages[STAGE_KEY[s.id]] }))); setError(null) })
+      .catch(err => setError(err.message))
   }, [])
+
+  if (error) {
+    return <div className="py-24 text-center text-muted"><Icon name="AlertCircle" size={24} className="mx-auto mb-3" />{error}</div>
+  }
+  if (!health) {
+    return <div className="py-24 text-center text-muted"><Icon name="Loader" size={24} className="mx-auto mb-3 animate-spin" />Loading pipeline health…</div>
+  }
 
   const counts = health.reduce((a, s) => (a[s.state] = (a[s.state] || 0) + 1, a), {})
   return (
@@ -50,8 +57,11 @@ export default function SystemHealth() {
                 </span>
                 <StatusChip status={s.state} />
               </div>
-              <AreaChart data={Array.from({ length: 12 }, (_, k) => 30 + Math.round(Math.abs(Math.sin(i + k)) * 60))} height={50} />
-              <div className="flex justify-between text-[12px] text-muted mt-3"><span>Latency <span className="text-ink font-medium">{s.latency}ms</span></span><span>Throughput <span className="text-ink font-medium">{s.throughput}/s</span></span></div>
+              <p className="text-[12px] text-muted">
+                {s.detail?.backend && <>backend: <span className="text-ink">{s.detail.backend}</span></>}
+                {s.detail?.provider && <>provider: <span className="text-ink">{s.detail.provider}</span>{s.detail.model && <> · {s.detail.model}</>}</>}
+                {!s.detail?.backend && !s.detail?.provider && (s.detail?.enabled ? 'enabled' : 'disabled')}
+              </p>
             </Card>
           </Reveal>
         ))}

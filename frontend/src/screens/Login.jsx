@@ -66,6 +66,13 @@ export default function Login() {
           <button className="w-full h-10 rounded-md border border-hairline bg-surface text-ink text-[14px] font-semibold flex items-center justify-center gap-2 hover:bg-surface-soft" onClick={() => nav('/app/admin')}>
             <Icon name="KeyRound" size={16} /> Continue with SSO
           </button>
+          <button
+            type="button"
+            className="w-full h-9 rounded-md text-[13px] text-muted font-medium flex items-center justify-center gap-1.5 hover:text-ink"
+            onClick={() => { setEmail('demo@sonic.dev'); setPassword('demo1234') }}
+          >
+            <Icon name="Wand2" size={14} /> Fill demo credentials
+          </button>
         </div>
 
         <p className="text-[13px] text-muted text-center mt-6">New organization? <Link to="/signup" className="text-ink font-semibold">Create workspace</Link></p>

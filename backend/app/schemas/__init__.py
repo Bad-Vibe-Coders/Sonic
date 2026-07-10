@@ -62,6 +62,7 @@ class ConversationSummary(BaseModel):
     current_stage: str | None = None
     duration_seconds: float | None = None
     created_at: datetime
+    uploaded_by: str | None = None
 
 
 class ConversationDetail(ConversationSummary):
@@ -80,6 +81,59 @@ class AnalyticsOverview(BaseModel):
     failed_conversations: int = 0
     total_duration_seconds: float = 0.0
     avg_qa_score: float | None = None
+
+
+class VolumePoint(BaseModel):
+    date: str
+    count: int
+
+
+class ComplianceCategory(BaseModel):
+    rule: str
+    pass_rate: float
+    total: int
+
+
+class RiskItem(BaseModel):
+    label: str
+    level: str
+    count: int
+
+
+class NotificationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    conversation_id: str | None = None
+    kind: str
+    title: str
+    body: str
+    read: bool
+    created_at: datetime
+
+
+class TenantSummary(BaseModel):
+    id: str
+    name: str
+    subdomain: str
+    seats: int
+    total_conversations: int
+    created_at: datetime
+
+
+class PlatformOverview(BaseModel):
+    tenant_count: int
+    total_seats: int
+    total_conversations: int
+
+
+class AgentStat(BaseModel):
+    user_id: str
+    email: str
+    calls: int
+    completed: int
+    failed: int
+    avg_qa_score: float | None = None
+    flags: int = 0
 
 
 class SearchHit(BaseModel):

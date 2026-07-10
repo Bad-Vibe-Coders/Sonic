@@ -18,7 +18,15 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.models import Conversation, ConversationStatus, Segment, StageRun, TenantMetrics
+from app.models import (
+    Conversation,
+    ConversationStatus,
+    Notification,
+    NotificationKind,
+    Segment,
+    StageRun,
+    TenantMetrics,
+)
 from app.services import embeddings as emb
 from app.services import qa_rules
 from app.services.storage import get_storage
@@ -38,6 +46,13 @@ INTENT_KEYWORDS = {
 
 def _flag(name: str) -> bool:
     return getattr(get_settings(), name)
+
+
+def _notify(db: Session, conv: Conversation, kind: NotificationKind, title: str, body: str) -> None:
+    db.add(Notification(
+        tenant_id=conv.tenant_id, conversation_id=conv.id,
+        kind=kind, title=title, body=body,
+    ))
 
 
 # ---------------------------------------------------------------- 1. audio
@@ -196,16 +211,22 @@ def stage_emotion(db: Session, conv: Conversation):
     except ImportError:
         available = False
 
+    if available:
+        try:
+            # Real path (GPU-friendly): classify each segment's audio window.
+            classifier = foreign_class(
+                source="speechbrain/emotion-recognition-wav2vec2-IEMOCAP",
+                pymodule_file="custom_interface.py", classname="CustomEncoderWav2vec2Classifier",
+            )
+        except Exception as exc:
+            logger.warning("speechbrain classifier failed to load: %s", exc)
+            available = False
+
     if not available:
         for seg in segments:
             seg.emotion = {"label": "neutral", "confidence": 0.0, "source": "fallback"}
-        return "fallback", "speechbrain not installed; neutral scores"
+        return "fallback", "speechbrain unavailable; neutral scores"
 
-    # Real path (GPU-friendly): classify each segment's audio window.
-    classifier = foreign_class(
-        source="speechbrain/emotion-recognition-wav2vec2-IEMOCAP",
-        pymodule_file="custom_interface.py", classname="CustomEncoderWav2vec2Classifier",
-    )
     storage = get_storage()
     data = storage.get(conv.processed_audio_key)
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -327,6 +348,12 @@ def stage_qa(db: Session, conv: Conversation):
         except Exception as exc:
             logger.warning("LLM judge failed: %s", exc)
     conv.qa_result = result
+    if not result.get("passed", True):
+        failed_rules = [f["rule"] for f in result.get("findings", []) if not f.get("passed", True)]
+        _notify(
+            db, conv, NotificationKind.error, "Compliance violation",
+            f"{conv.title}: failed {', '.join(failed_rules) or 'QA check'}",
+        )
     return "ok", result["source"]
 
 
@@ -337,6 +364,16 @@ def stage_prediction(db: Session, conv: Conversation):
     if not _flag("enable_prediction"):
         return "skipped", "disabled by flag"
     conv.prediction = _heuristic_predict(conv, db)
+    if conv.prediction["churn_risk"] >= 0.7:
+        _notify(
+            db, conv, NotificationKind.warning, "Churn risk spike",
+            f"{conv.title} scored {round(conv.prediction['churn_risk'] * 100)}% churn risk.",
+        )
+    if conv.prediction["escalation_risk"] >= 0.7:
+        _notify(
+            db, conv, NotificationKind.warning, "Escalation risk",
+            f"{conv.title} scored {round(conv.prediction['escalation_risk'] * 100)}% escalation risk.",
+        )
     return "ok", "heuristic predictor"
 
 

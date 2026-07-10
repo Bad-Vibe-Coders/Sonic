@@ -55,3 +55,14 @@ def require_role(*roles: Role):
         return user
 
     return _check
+
+
+async def require_platform_admin(
+    user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    """Gate for cross-tenant platform routes. These queries intentionally use
+    `get_db` (not `get_tenant_db`) so RLS's tenant_id scope is never set,
+    letting the table-owner connection see every tenant's rows."""
+    if not user.platform_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Platform admin only")
+    return user
