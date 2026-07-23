@@ -1,15 +1,34 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { Button } from '../components/ui'
 import { TenantSwitcher, ThemeToggle } from '../layouts/Controls'
 import Icon from '../components/Icon'
+import { login } from '../lib/api'
 
 // Subdomain-aware login: the tenant's brand color + logo load BEFORE auth.
 export default function Login() {
   const { tenant } = useTheme()
   const t = TENANTS[tenant]
   const nav = useNavigate()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  async function submit() {
+    setError(null)
+    setBusy(true)
+    try {
+      await login(email, password)
+      nav('/app/admin')
+    } catch (e) {
+      setError(e.status === 401 ? 'Invalid email or password.' : `Sign-in failed: ${e.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-surface-soft relative">
@@ -32,19 +51,27 @@ export default function Login() {
             <label className="block text-[13px] font-medium text-ink mb-1.5">Email</label>
             <div className="flex items-center h-11 rounded-md border border-hairline bg-surface focus-within:border-ink px-3 gap-2">
               <Icon name="Mail" size={16} className="text-muted" />
-              <input placeholder="you@company.com" className="flex-1 bg-transparent outline-none text-ink text-[15px]" />
+              <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" className="flex-1 bg-transparent outline-none text-ink text-[15px]" />
             </div>
           </div>
           <div>
             <div className="flex justify-between mb-1.5"><label className="text-[13px] font-medium text-ink">Password</label><a className="text-[12px] text-muted hover:text-ink">Forgot?</a></div>
             <div className="flex items-center h-11 rounded-md border border-hairline bg-surface focus-within:border-ink px-3 gap-2">
               <Icon name="Lock" size={16} className="text-muted" />
-              <input type="password" placeholder="••••••••" className="flex-1 bg-transparent outline-none text-ink text-[15px]" />
+              <input value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} type="password" placeholder="••••••••" className="flex-1 bg-transparent outline-none text-ink text-[15px]" />
             </div>
           </div>
-          <Button className="w-full" style={{ background: 'rgb(var(--primary))', color: 'rgb(var(--on-primary))' }} onClick={() => nav('/app/admin')}>Sign in to {t.name}</Button>
+          {error && <p className="text-[13px] text-error flex items-center gap-1.5"><Icon name="AlertCircle" size={14} /> {error}</p>}
+          <Button className="w-full" style={{ background: 'rgb(var(--primary))', color: 'rgb(var(--on-primary))' }} disabled={busy} onClick={submit}>{busy ? 'Signing in…' : `Sign in to ${t.name}`}</Button>
           <button className="w-full h-10 rounded-md border border-hairline bg-surface text-ink text-[14px] font-semibold flex items-center justify-center gap-2 hover:bg-surface-soft" onClick={() => nav('/app/admin')}>
             <Icon name="KeyRound" size={16} /> Continue with SSO
+          </button>
+          <button
+            type="button"
+            className="w-full h-9 rounded-md text-[13px] text-muted font-medium flex items-center justify-center gap-1.5 hover:text-ink"
+            onClick={() => { setEmail('demo@sonic.dev'); setPassword('demo1234') }}
+          >
+            <Icon name="Wand2" size={14} /> Fill demo credentials
           </button>
         </div>
 

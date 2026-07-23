@@ -4,23 +4,36 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Card } from '../components/ui'
 import Logo from '../components/Logo'
 import Icon from '../components/Icon'
+import { register } from '../lib/api'
 
 const STEPS = ['Account', 'Workspace', 'Setup']
 
 export default function Signup() {
   const [step, setStep] = useState(0)
   const [sub, setSub] = useState('acme')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [orgName, setOrgName] = useState('')
+  const [error, setError] = useState(null)
   const [provPct, setProvPct] = useState(0)
   const nav = useNavigate()
 
   useEffect(() => {
     if (step !== 2) return
+    let cancelled = false
+    register({ tenant_name: orgName || sub, subdomain: sub, email, password })
+      .catch(e => {
+        if (cancelled) return
+        setError(e.status === 409 ? 'That subdomain or email is already taken.' : `Signup failed: ${e.message}`)
+        setStep(1)
+        setProvPct(0)
+      })
     const id = setInterval(() => setProvPct(p => {
       if (p >= 100) { clearInterval(id); setTimeout(() => nav('/onboarding'), 600); return 100 }
       return p + 4
     }), 90)
-    return () => clearInterval(id)
-  }, [step, nav])
+    return () => { cancelled = true; clearInterval(id) }
+  }, [step, nav]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const provSteps = ['Reserving subdomain', 'Provisioning isolated tenant', 'Spinning up AI pipeline', 'Seeding dashboards']
 
@@ -59,9 +72,9 @@ export default function Signup() {
               <motion.div key="a" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <h1 className="display d-md text-ink mb-1">Create your account</h1>
                 <p className="text-muted mb-6">Start free — no card required.</p>
-                <Field label="Work email" placeholder="you@company.com" icon="Mail" />
+                <Field label="Work email" placeholder="you@company.com" icon="Mail" value={email} onChange={e => setEmail(e.target.value)} />
                 <Field label="Full name" placeholder="Jordan Lee" icon="User" />
-                <Field label="Password" placeholder="••••••••" icon="Lock" type="password" />
+                <Field label="Password" placeholder="••••••••" icon="Lock" type="password" value={password} onChange={e => setPassword(e.target.value)} />
                 <Button className="w-full mt-2" onClick={() => setStep(1)}>Continue</Button>
                 <p className="text-[13px] text-muted text-center mt-4">Already have an account? <Link to="/login" className="text-ink font-semibold">Sign in</Link></p>
               </motion.div>
@@ -70,7 +83,8 @@ export default function Signup() {
               <motion.div key="b" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <h1 className="display d-md text-ink mb-1">Claim your subdomain</h1>
                 <p className="text-muted mb-6">This is where your team will sign in.</p>
-                <Field label="Organization name" placeholder="Acme Corp" icon="Building2" />
+                <Field label="Organization name" placeholder="Acme Corp" icon="Building2" value={orgName} onChange={e => setOrgName(e.target.value)} />
+                {error && <p className="text-[13px] text-error flex items-center gap-1.5 mb-3"><Icon name="AlertCircle" size={14} /> {error}</p>}
                 <label className="block text-[13px] font-medium text-ink mb-1.5">Subdomain</label>
                 <div className="flex items-center h-11 rounded-md border border-hairline bg-surface focus-within:border-ink overflow-hidden mb-2">
                   <input value={sub} onChange={e => setSub(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} className="flex-1 px-3 bg-transparent outline-none text-ink text-[15px]" />
