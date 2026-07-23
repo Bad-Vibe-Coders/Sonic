@@ -31,3 +31,9 @@ venv/
 *.local
 coverage/
 
+
+# sonic backend runtime artifacts
+data/
+tests/test_sonic.db
+tests/test_audio/
+*.egg-info/

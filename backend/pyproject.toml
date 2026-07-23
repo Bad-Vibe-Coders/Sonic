@@ -1,0 +1,52 @@
+[project]
+name = "sonic-backend"
+version = "0.1.0"
+description = "Sonic API + AI pipeline services"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "sqlalchemy[asyncio]>=2.0",
+    "alembic>=1.13",
+    "asyncpg>=0.29; platform_python_implementation == 'CPython'",
+    "psycopg2-binary>=2.9",
+    "aiosqlite>=0.20",
+    "celery>=5.4",
+    "redis>=5.0",
+    "boto3>=1.34",
+    "anthropic>=0.40",
+    "PyJWT>=2.8",
+    "python-multipart>=0.0.9",
+    "prometheus-fastapi-instrumentator>=7.0",
+    "PyYAML>=6.0",
+    "email-validator>=2.0",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+# Heavy ML stages — each is feature-flagged with a cheap fallback when absent.
+ml = [
+    "banglaspeech2text>=1.0",
+    "faster-whisper>=1.0",
+    "pyannote.audio>=3.1",
+    "speechbrain>=1.0",
+    "spacy>=3.7",
+    "transformers>=4.40",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
