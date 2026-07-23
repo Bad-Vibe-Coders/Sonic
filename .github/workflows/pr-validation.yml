@@ -1,0 +1,37 @@
+name: PR Validation
+
+# Enforces the team's Jira-key convention (see engineering workflow docs):
+# every PR title and source branch name must reference a SON-<number> key.
+# SON-32 (Jira Automation) parses the same key out of PR titles to auto-transition
+# issues, so keep JIRA_KEY_REGEX / BRANCH_REGEX here in sync with that script.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+    branches: [main, staging]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title for Jira key
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          JIRA_KEY_REGEX='^\[SON-[0-9]+\]'
+          if ! echo "$PR_TITLE" | grep -qE "$JIRA_KEY_REGEX"; then
+            echo "::error::PR title must start with a Jira key like [SON-8], e.g. '[SON-8] Short description of the change'. Got: '$PR_TITLE'"
+            exit 1
+          fi
+          echo "PR title OK: $PR_TITLE"
+
+      - name: Check branch name for Jira key
+        env:
+          BRANCH_NAME: ${{ github.head_ref }}
+        run: |
+          BRANCH_REGEX='^(feature|fix|chore)/SON-[0-9]+-.+'
+          if ! echo "$BRANCH_NAME" | grep -qE "$BRANCH_REGEX"; then
+            echo "::error::Branch name must match feature/SON-<number>-description (or fix/, chore/), e.g. 'feature/SON-8-auth-service'. Got: '$BRANCH_NAME'"
+            exit 1
+          fi
+          echo "Branch name OK: $BRANCH_NAME"
