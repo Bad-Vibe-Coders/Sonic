@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, SectionTitle, Button, StatusChip, KPICard, Reveal } from '../components/ui'
+import { Card, SectionTitle, StatusChip, KPICard, Reveal } from '../components/ui'
 import { BarChart } from '../components/charts'
 import { PIPELINE } from '../lib/data'
 import { platformOverview, platformTenants } from '../lib/api'
@@ -96,7 +96,7 @@ export function PlatformHealth() {
     <div className="space-y-8">
       <div><h1 className="display d-lg text-ink">Fleet health</h1><p className="text-muted mt-1">Pipeline status aggregated across all tenants.</p></div>
       <Card className="p-6 text-center text-muted mb-4">
-        <p className="text-[13px]">Fleet-wide (cross-tenant) pipeline health isn't tracked yet — see <a href="/app/health" className="text-ink font-medium">System health</a> for per-tenant status.</p>
+        <p className="text-[13px]">Fleet-wide (cross-tenant) pipeline health isn&rsquo;t tracked yet — see <a href="/app/health" className="text-ink font-medium">System health</a> for per-tenant status.</p>
       </Card>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {PIPELINE.map(s => (

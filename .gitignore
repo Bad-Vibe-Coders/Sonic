@@ -34,6 +34,15 @@ coverage/
 
 # sonic backend runtime artifacts
 data/
-tests/test_sonic.db
-tests/test_audio/
+
+# Database artifacts (dev & test)
+*.db
+*.sqlite3
+
+# Test fixtures (generated at runtime)
+backend/tests/test_audio/
+
+# Audio files that shouldn't be committed at root backend level
+backend/*.wav
+
 *.egg-info/

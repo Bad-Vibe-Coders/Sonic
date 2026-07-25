@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Button, Card } from '../components/ui'
+import { Button } from '../components/ui'
 import Logo from '../components/Logo'
 import Icon from '../components/Icon'
 import { register } from '../lib/api'

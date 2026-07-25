@@ -19,7 +19,7 @@ export default function Billing() {
           <div className="flex items-start gap-3">
             <span className="w-10 h-10 rounded-lg bg-warning/15 text-warning flex items-center justify-center shrink-0"><Icon name="Zap" size={20} /></span>
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-ink">You're at 78% of your monthly call quota</h3>
+              <h3 className="text-[15px] font-semibold text-ink">You&rsquo;re at 78% of your monthly call quota</h3>
               <p className="text-[13px] text-muted mt-0.5 mb-3">117,000 of 150,000 calls used. Upgrade to avoid overage charges.</p>
               <div className="h-2 rounded-full bg-surface-strong overflow-hidden max-w-md"><div className="h-full bg-warning" style={{ width: '78%' }} /></div>
             </div>
