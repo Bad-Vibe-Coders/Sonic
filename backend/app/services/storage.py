@@ -37,7 +37,7 @@ class LocalStorage(StorageBackend):
 
 
 class S3Storage(StorageBackend):
-    def __init__(self):
+    def __init__(self) -> None:
         import boto3
 
         s = get_settings()
@@ -57,7 +57,8 @@ class S3Storage(StorageBackend):
         self.client.put_object(Bucket=self.bucket, Key=key, Body=data)
 
     def get(self, key: str) -> bytes:
-        return self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+        body: bytes = self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+        return body
 
 
 def get_storage() -> StorageBackend:

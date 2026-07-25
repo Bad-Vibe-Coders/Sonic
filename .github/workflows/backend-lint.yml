@@ -1,0 +1,28 @@
+name: Backend Lint
+
+# Static analysis for the backend: ruff for style/unused-import/undefined-name checks,
+# mypy scoped to app/core and app/services for now (see SON-33) rather than the whole
+# tree, since retrofitting strict typing across e.g. app/pipeline would be noisy upfront.
+
+on:
+  push:
+    branches: [main, staging]
+    paths: ['backend/**', '.github/workflows/backend-lint.yml']
+  pull_request:
+    branches: [main, staging]
+    paths: ['backend/**']
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install .[dev]
+      - run: ruff check .
+      - run: mypy app/core app/services

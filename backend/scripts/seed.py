@@ -13,8 +13,8 @@ from sqlalchemy import select
 from app.core.db import SyncSessionLocal
 from app.core.security import hash_password
 from app.models import Conversation, ConversationStatus, Role, Segment, Tenant, User
-from app.pipeline.stages import STAGES
 from app.pipeline.runner import run_stage
+from app.pipeline.stages import STAGES
 
 SAMPLE_TRANSCRIPT = (
     "Hello, thank you for calling Sonic support, this call may be recorded. "

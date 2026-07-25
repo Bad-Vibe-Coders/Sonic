@@ -1,9 +1,9 @@
-from alembic import context
 from sqlalchemy import create_engine
 
+import app.models  # noqa: F401  (register models on Base.metadata)
+from alembic import context
 from app.core.config import get_settings
 from app.core.db import Base
-import app.models  # noqa: F401  (register models on Base.metadata)
 
 target_metadata = Base.metadata
 
