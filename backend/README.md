@@ -16,7 +16,10 @@ analysis (Anthropic/Claude available via `SONIC_LLM_PROVIDER=anthropic`) ·
 **BanglaSpeech2Text** for transcription (faster-whisper as secondary backend) ·
 pyannote / SpeechBrain / spaCy (optional `ml` extra).
 
-## Local dev
+## Local dev (host-based, hot reload)
+
+Best for active backend development — `uvicorn --reload` and Celery run directly
+against your Python env, only the infra runs in containers.
 
 ```bash
 cd backend
@@ -24,7 +27,9 @@ python -m venv .venv && . .venv/Scripts/activate   # or bin/activate
 pip install -e ".[dev]"                            # add ".[ml]" for real ASR/NLP models
 
 cp .env.example .env                               # adjust as needed
-docker compose up -d                               # postgres (pgvector), redis, minio
+docker compose up -d postgres redis minio          # infra only -- omits ollama (GPU-gated,
+                                                     # see below) and api/worker (run those on
+                                                     # the host in the two terminals below)
 
 alembic upgrade head
 python -m scripts.seed                             # demo tenant + processed sample call
@@ -38,6 +43,43 @@ celery -A app.workers.celery_app worker --loglevel=info --pool=solo
 - API docs: http://localhost:8000/docs
 - Metrics (Prometheus): http://localhost:8000/metrics
 - Pipeline dependency status: `GET /api/v1/health/pipeline`
+
+## All-in-one (Docker) — API + worker containerized
+
+Alternative to the host-based flow above: boots Postgres/Redis/MinIO **and** the
+API + Celery worker as containers (`backend/Dockerfile`, api/worker stages sharing
+one image, different `CMD`). Best for a quick end-to-end spin-up without a local
+Python env, or as a closer approximation of staging/production.
+
+```bash
+cd backend
+docker compose up -d --build postgres redis minio api worker
+```
+
+The `api` container runs `alembic upgrade head` on startup (`RUN_MIGRATIONS=true`,
+set only on `api` in `docker-compose.yml` so the two processes don't race applying
+migrations concurrently); `worker` waits on the same Postgres/Redis and just starts
+consuming the pipeline queue. Same ports and demo login as the host-based flow —
+seed with `docker compose exec api python -m scripts.seed`.
+
+`ollama` is intentionally left out of that service list — it reserves an NVIDIA GPU
+in compose and most dev/CI machines don't have one. Add it manually
+(`docker compose up -d ollama`) only if you have GPU support locally; without it,
+the LLM pipeline stage (6) just records `skipped` and the rest of the pipeline
+completes normally.
+
+**ML extras** (`banglaspeech2text`, `faster-whisper`, `pyannote.audio`, `speechbrain`,
+`spacy`, `transformers` — the `[ml]` extra in `pyproject.toml`) are **not** baked
+into the default image: they're multi-GB, several need CUDA-matched wheels for GPU
+use, and every stage that uses them already falls back gracefully without them (see
+"Stack" above). Build with the real models instead via:
+
+```bash
+docker compose build --build-arg INSTALL_ML_EXTRAS=true worker
+```
+
+(Only worth doing for `worker` — the `api` service never runs pipeline stages, so
+installing ML extras there just bloats the image for no benefit.)
 - Demo login: `demo@sonic.dev` / `demo1234`
 
 ### Smoke test

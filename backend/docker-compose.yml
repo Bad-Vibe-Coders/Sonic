@@ -1,3 +1,15 @@
+x-app-env: &app-env
+  SONIC_DATABASE_URL: postgresql+asyncpg://sonic:sonic@postgres:5432/sonic
+  SONIC_REDIS_URL: redis://redis:6379/0
+  SONIC_SECRET_KEY: dev-secret-change-me
+  SONIC_STORAGE_BACKEND: s3
+  SONIC_S3_ENDPOINT_URL: http://minio:9000
+  SONIC_S3_ACCESS_KEY: sonic
+  SONIC_S3_SECRET_KEY: sonic-secret
+  SONIC_S3_BUCKET: sonic-audio
+  SONIC_LLM_PROVIDER: ollama
+  SONIC_OLLAMA_BASE_URL: http://ollama:11434
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -45,6 +57,36 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      <<: *app-env
+      RUN_MIGRATIONS: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  worker:
+    build:
+      context: .
+      target: worker
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
 
 volumes:
   pgdata:
