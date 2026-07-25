@@ -19,13 +19,21 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from app.core.db import Base, sync_engine
+from app.core.billing import PLAN_CATALOG
+from app.core.db import Base, SyncSessionLocal, sync_engine
 from app.main import app
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _create_tables():
     Base.metadata.create_all(sync_engine)
+    # Base.metadata.create_all() only builds schema, not data — migration 0005's plan-catalog
+    # seeding never runs against the test DB, so seed it directly here.
+    from app.models import Plan
+
+    with SyncSessionLocal() as db:
+        db.add_all(Plan(**p) for p in PLAN_CATALOG)
+        db.commit()
     yield
 
 

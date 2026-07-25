@@ -6,9 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.billing import DEFAULT_PLAN_CODE
 from app.core.db import get_db
 from app.core.security import create_token, decode_token, hash_password, verify_password
-from app.models import Role, Tenant, User
+from app.models import Plan, Role, Subscription, Tenant, User
 from app.schemas import LoginRequest, RefreshRequest, RegisterRequest, TokenResponse, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -29,6 +30,9 @@ async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(ge
         password_hash=hash_password(body.password), role=Role.admin,
     )
     db.add(user)
+    default_plan = await db.scalar(select(Plan).where(Plan.code == DEFAULT_PLAN_CODE))
+    if default_plan is not None:
+        db.add(Subscription(tenant_id=tenant.id, plan_id=default_plan.id))
     await db.commit()
     return _tokens(user)
 
