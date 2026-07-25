@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_tenant_db
-from app.models import Conversation, ConversationStatus, User
+from app.models import Conversation, ConversationStatus, Role, User
 from app.schemas import ConversationDetail, ConversationSummary
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
@@ -63,11 +63,14 @@ async def list_conversations(
     limit: int = 50,
     offset: int = 0,
 ):
+    # Agents only ever browse their own calls, not the whole tenant's — enforced
+    # server-side (not just by hiding the nav link) so it can't be bypassed by
+    # calling the API directly. Other roles see every conversation in the tenant.
+    query = select(Conversation).where(Conversation.tenant_id == user.tenant_id)
+    if user.role == Role.agent:
+        query = query.where(Conversation.uploaded_by == user.id)
     rows = await db.scalars(
-        select(Conversation)
-        .where(Conversation.tenant_id == user.tenant_id)
-        .order_by(Conversation.created_at.desc())
-        .limit(min(limit, 200)).offset(offset)
+        query.order_by(Conversation.created_at.desc()).limit(min(limit, 200)).offset(offset)
     )
     return list(rows)
 
@@ -78,11 +81,14 @@ async def get_conversation(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_tenant_db)],
 ):
-    conv = await db.scalar(
+    query = (
         select(Conversation)
         .options(selectinload(Conversation.segments), selectinload(Conversation.stage_runs))
         .where(Conversation.id == conversation_id, Conversation.tenant_id == user.tenant_id)
     )
+    if user.role == Role.agent:
+        query = query.where(Conversation.uploaded_by == user.id)
+    conv = await db.scalar(query)
     if conv is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Conversation not found")
     return conv

@@ -10,7 +10,7 @@ const ALL_NAV = [
   { to: '/app/admin', label: 'Admin', icon: 'LayoutDashboard', roles: ['admin'] },
   { to: '/app/supervisor', label: 'Supervisor', icon: 'Gauge', roles: ['supervisor'] },
   { to: '/app/agent', label: 'My Calls', icon: 'Headphones', roles: ['agent'] },
-  { to: '/app/conversations', label: 'Conversations', icon: 'MessagesSquare', roles: ['admin', 'supervisor', 'analyst', 'exec'] },
+  { to: '/app/conversations', label: 'Conversations', icon: 'MessagesSquare', roles: ['admin', 'supervisor', 'analyst', 'agent', 'exec'] },
   { to: '/app/analytics', label: 'Analytics', icon: 'BarChart3', roles: ['admin', 'supervisor', 'exec'] },
   { to: '/app/health', label: 'System Health', icon: 'Activity', roles: ['admin'] },
   { to: '/app/notifications', label: 'Alerts', icon: 'Bell', roles: ['admin', 'supervisor', 'analyst', 'agent', 'exec'] },
