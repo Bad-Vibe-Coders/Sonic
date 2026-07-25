@@ -1,6 +1,10 @@
 import { Card, Button, SectionTitle } from '../components/ui'
 import Icon from '../components/Icon'
 
+// Internal design-system reference (admin-only, /app/states in AppShell nav): a living
+// catalogue of the loading/empty/error UI patterns other screens should reuse, so it's
+// static by design and never needed an API wire-up. Audited in SON-27 — kept as-is.
+
 function Skeleton() {
   return (
     <Card className="p-5 space-y-3">
