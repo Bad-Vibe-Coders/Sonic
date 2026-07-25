@@ -35,6 +35,9 @@ class Tenant(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(String(255), unique=True)
     subdomain: Mapped[str] = mapped_column(String(63), unique=True)
+    timezone: Mapped[str] = mapped_column(String(64), default="UTC")
+    # Overrides the global SONIC_QA_RULES_PATH default when set (see app/services/qa_rules.py).
+    qa_rules_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     users: Mapped[list["User"]] = relationship(back_populates="tenant")
@@ -49,6 +52,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.agent)
     platform_admin: Mapped[bool] = mapped_column(default=False)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notify_email: Mapped[bool] = mapped_column(default=True)
+    notify_in_app: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     tenant: Mapped[Tenant] = relationship(back_populates="users")
