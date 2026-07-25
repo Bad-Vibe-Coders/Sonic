@@ -24,6 +24,7 @@ from app.models import (
     Notification,
     NotificationKind,
     Segment,
+    Tenant,
     TenantMetrics,
 )
 from app.services import embeddings as emb
@@ -318,7 +319,9 @@ def stage_qa(db: Session, conv: Conversation):
     if not _flag("enable_qa"):
         return "skipped", "disabled by flag"
     transcript = conv.transcript or ""
-    rules = qa_rules.load_rules(get_settings().qa_rules_path)
+    tenant = db.get(Tenant, conv.tenant_id)
+    rules_path = (tenant and tenant.qa_rules_path) or get_settings().qa_rules_path
+    rules = qa_rules.load_rules(rules_path)
     result = qa_rules.evaluate(transcript, rules)
     result["source"] = "rules_engine"
     # LLM-as-judge refinement when a provider is reachable (best-effort).

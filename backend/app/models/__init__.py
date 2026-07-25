@@ -1,6 +1,6 @@
 import enum
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -14,6 +14,10 @@ def _uuid() -> str:
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _period_end() -> datetime:
+    return datetime.now(UTC) + timedelta(days=30)
 
 
 class Role(str, enum.Enum):
@@ -35,6 +39,9 @@ class Tenant(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(String(255), unique=True)
     subdomain: Mapped[str] = mapped_column(String(63), unique=True)
+    timezone: Mapped[str] = mapped_column(String(64), default="UTC")
+    # Overrides the global SONIC_QA_RULES_PATH default when set (see app/services/qa_rules.py).
+    qa_rules_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     users: Mapped[list["User"]] = relationship(back_populates="tenant")
@@ -49,6 +56,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.agent)
     platform_admin: Mapped[bool] = mapped_column(default=False)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notify_email: Mapped[bool] = mapped_column(default=True)
+    notify_in_app: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     tenant: Mapped[Tenant] = relationship(back_populates="users")
@@ -168,3 +178,62 @@ class TenantMetrics(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
     )
+
+
+class SubscriptionStatus(str, enum.Enum):
+    active = "active"
+    canceled = "canceled"
+
+
+class InvoiceStatus(str, enum.Enum):
+    paid = "paid"
+    due = "due"
+
+
+class Plan(Base):
+    """Global plan catalog (not tenant-scoped). Payment provider is stubbed —
+    no real charges are processed; subscriptions and invoices live entirely
+    in our own DB pending a Stripe (or similar) integration."""
+
+    __tablename__ = "plans"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    code: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(64))
+    price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)  # None = "Custom" (Enterprise)
+    call_quota: Mapped[int | None] = mapped_column(Integer, nullable=True)  # None = unlimited
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Subscription(Base):
+    """A tenant's current plan. One active subscription per tenant."""
+
+    __tablename__ = "subscriptions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(36), unique=True, index=True)
+    plan_id: Mapped[str] = mapped_column(String(36), ForeignKey("plans.id"))
+    status: Mapped[SubscriptionStatus] = mapped_column(
+        Enum(SubscriptionStatus), default=SubscriptionStatus.active
+    )
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_period_end)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    plan: Mapped[Plan] = relationship()
+
+
+class Invoice(Base):
+    """A billed period for a tenant. Amounts are stubbed from the plan price —
+    no real payment provider is wired up yet."""
+
+    __tablename__ = "invoices"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    subscription_id: Mapped[str] = mapped_column(String(36), ForeignKey("subscriptions.id"))
+    amount_cents: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[InvoiceStatus] = mapped_column(Enum(InvoiceStatus), default=InvoiceStatus.due)
+    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)

@@ -106,6 +106,20 @@ export const listNotifications = () => request('/notifications')
 export const markNotificationRead = (id) => request(`/notifications/${id}/read`, { method: 'POST' })
 export const markAllNotificationsRead = () => request('/notifications/read-all', { method: 'POST' })
 
+// ---- Settings ----
+export const getUserSettings = () => request('/settings/me')
+export const updateUserSettings = (body) => request('/settings/me', { method: 'PUT', body })
+export const changePassword = (current_password, new_password) =>
+  request('/settings/me/password', { method: 'PUT', body: { current_password, new_password } })
+export const getTenantSettings = () => request('/settings/tenant')
+export const updateTenantSettings = (body) => request('/settings/tenant', { method: 'PUT', body })
+
+// ---- Billing ----
+export const getBillingSummary = () => request('/billing/me')
+export const listBillingPlans = () => request('/billing/plans')
+export const listInvoices = () => request('/billing/invoices')
+export const changePlan = (plan_code) => request('/billing/plan', { method: 'PUT', body: { plan_code } })
+
 // ---- Platform (cross-tenant admin) ----
 export const platformTenants = () => request('/platform/tenants')
 export const platformOverview = () => request('/platform/overview')

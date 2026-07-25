@@ -1,0 +1,92 @@
+name: Docker Compose Check
+
+# Verifies backend/docker-compose.yml still builds/starts cleanly. Catches:
+# bad image tags, broken service config, a stack that never reaches healthy.
+#
+# The compose file only defines the *infra* services (Postgres, Redis, MinIO,
+# Ollama) -- there's no backend Dockerfile yet, the API runs directly on the
+# host against these containers. So the smoke check here starts the API the
+# same way (pip install + uvicorn) against the composed services and hits
+# its real /health endpoint, rather than pretending a backend container
+# exists. Ollama is excluded: it reserves an nvidia GPU in compose, which
+# GitHub-hosted runners don't have, so `docker compose up` would never
+# consider it ready.
+#
+# SON-37 | Related: SON-21 (core CI), SON-1 (Docker dev environment this protects)
+
+on:
+  push:
+    branches: [main, staging]
+    paths:
+      - 'backend/docker-compose.yml'
+      - 'backend/.env.example'
+      - 'backend/Dockerfile'
+      - '.github/workflows/docker-check.yml'
+  pull_request:
+    branches: [main, staging]
+    paths:
+      - 'backend/docker-compose.yml'
+      - 'backend/.env.example'
+      - 'backend/Dockerfile'
+      - '.github/workflows/docker-check.yml'
+
+jobs:
+  docker-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      SONIC_DATABASE_URL: postgresql+asyncpg://sonic:sonic@localhost:5432/sonic
+      SONIC_REDIS_URL: redis://localhost:6379/0
+      SONIC_SECRET_KEY: docker-check-ci-secret
+      SONIC_STORAGE_BACKEND: local
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start compose services (Postgres, Redis, MinIO)
+        run: |
+          docker compose up -d --wait --wait-timeout 120 postgres redis minio
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install dependencies
+        run: pip install .[dev]
+
+      - name: Run migrations against the composed Postgres
+        run: alembic upgrade head
+
+      - name: Start the API and smoke-test /health
+        run: |
+          nohup python -m uvicorn app.main:app --port 8000 > uvicorn.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/api/v1/health > response.json; then
+              echo "API responded:"
+              cat response.json
+              break
+            fi
+            sleep 1
+          done
+          if ! grep -q '"status"' response.json 2>/dev/null; then
+            echo "::error::API never responded on /api/v1/health"
+            cat uvicorn.log || true
+            exit 1
+          fi
+          if ! grep -q '"database": *true' response.json; then
+            echo "::error::/health reported database: false -- Postgres wasn't actually reachable"
+            cat response.json
+            exit 1
+          fi
+          echo "✅ /api/v1/health returned 200 with database: true"
+
+      - name: Tear down compose stack
+        if: always()
+        run: docker compose down -v

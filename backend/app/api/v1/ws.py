@@ -20,20 +20,33 @@ router = APIRouter()
 
 @router.websocket("/ws/conversations/{conversation_id}")
 async def conversation_ws(websocket: WebSocket, conversation_id: str, token: str = Query(default="")):
+    # Authenticate the socket the same way app/api/deps.get_current_user does for
+    # HTTP: valid signature, an *access* token (never a refresh token), and a user
+    # that still exists. Any failure closes with 4401 before the handshake.
     try:
         payload = decode_token(token)
-        tenant_id = payload["tenant_id"]
-    except (pyjwt.PyJWTError, KeyError):
+    except pyjwt.PyJWTError:
+        await websocket.close(code=4401)
+        return
+    if payload.get("type") != "access":
+        await websocket.close(code=4401)
+        return
+    tenant_id = payload.get("tenant_id")
+    user_id = payload.get("sub")
+    if not tenant_id or not user_id:
         await websocket.close(code=4401)
         return
 
-    # Verify the conversation belongs to the caller's tenant.
     from sqlalchemy import select
 
     from app.core.db import AsyncSessionLocal
-    from app.models import Conversation
+    from app.models import Conversation, User
 
     async with AsyncSessionLocal() as db:
+        if await db.get(User, user_id) is None:
+            await websocket.close(code=4401)
+            return
+        # Verify the conversation belongs to the caller's tenant.
         conv = await db.scalar(select(Conversation).where(
             Conversation.id == conversation_id, Conversation.tenant_id == tenant_id))
     if conv is None:

@@ -1,9 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { Card, Button, Toggle, StatusChip, Avatar } from '../components/ui'
 import Icon from '../components/Icon'
+import {
+  getUserSettings, updateUserSettings, changePassword,
+  getTenantSettings, updateTenantSettings,
+} from '../lib/api'
 
 const TABS = [
+  { id: 'account', label: 'Account', icon: 'User' },
+  { id: 'organization', label: 'Organization', icon: 'Building2' },
   { id: 'branding', label: 'Branding', icon: 'Palette' },
   { id: 'team', label: 'Team & roles', icon: 'Users' },
   { id: 'integrations', label: 'Integrations', icon: 'Plug' },
@@ -11,8 +17,223 @@ const TABS = [
   { id: 'data', label: 'Data & retention', icon: 'Database' },
 ]
 
+const TIMEZONES = [
+  'UTC', 'America/New_York', 'America/Los_Angeles', 'America/Chicago',
+  'Europe/London', 'Europe/Berlin', 'Asia/Dhaka', 'Asia/Kolkata',
+  'Asia/Singapore', 'Asia/Tokyo', 'Australia/Sydney',
+]
+
+function Banner({ status }) {
+  if (!status) return null
+  const isError = status.type === 'error'
+  return (
+    <div className={`rounded-md px-3 py-2 text-[13px] font-medium ${isError ? 'text-error bg-error/10' : 'text-success bg-success/10'}`}>
+      {status.message}
+    </div>
+  )
+}
+
+function AccountTab() {
+  const [user, setUser] = useState(null)
+  const [form, setForm] = useState({ name: '', notify_email: true, notify_in_app: true })
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState(null)
+
+  const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' })
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwStatus, setPwStatus] = useState(null)
+
+  useEffect(() => {
+    getUserSettings()
+      .then(data => { setUser(data); setForm({ name: data.name || '', notify_email: data.notify_email, notify_in_app: data.notify_in_app }) })
+      .catch(() => setUser(false))
+  }, [])
+
+  async function saveProfile(e) {
+    e.preventDefault()
+    setSaving(true)
+    setStatus(null)
+    try {
+      const updated = await updateUserSettings({ name: form.name.trim() || null, notify_email: form.notify_email, notify_in_app: form.notify_in_app })
+      setUser(updated)
+      setStatus({ type: 'success', message: 'Profile saved.' })
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not save profile.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function submitPassword(e) {
+    e.preventDefault()
+    setPwStatus(null)
+    if (pwForm.new_password.length < 8) {
+      setPwStatus({ type: 'error', message: 'New password must be at least 8 characters.' })
+      return
+    }
+    if (pwForm.new_password !== pwForm.confirm_password) {
+      setPwStatus({ type: 'error', message: 'New password and confirmation do not match.' })
+      return
+    }
+    setPwSaving(true)
+    try {
+      await changePassword(pwForm.current_password, pwForm.new_password)
+      setPwForm({ current_password: '', new_password: '', confirm_password: '' })
+      setPwStatus({ type: 'success', message: 'Password updated.' })
+    } catch (err) {
+      setPwStatus({ type: 'error', message: err.message || 'Could not update password.' })
+    } finally {
+      setPwSaving(false)
+    }
+  }
+
+  if (user === null) return <Card className="p-6 text-[14px] text-muted">Loading…</Card>
+  if (user === false) return <Card className="p-6 text-[14px] text-error">Couldn&rsquo;t load your account settings.</Card>
+
+  return (
+    <div className="space-y-5">
+      <Card className="p-6">
+        <h3 className="text-[16px] font-semibold text-ink mb-1">Profile</h3>
+        <p className="text-[13px] text-muted mb-5">{user.email}</p>
+        <form onSubmit={saveProfile} className="space-y-4">
+          <div>
+            <label className="block text-[13px] font-medium text-ink mb-2" htmlFor="account-name">Display name</label>
+            <input
+              id="account-name"
+              className="h-10 w-full max-w-sm rounded-md border border-hairline bg-surface px-3 text-[14px] text-ink"
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Your name"
+            />
+          </div>
+          <div className="flex items-center justify-between max-w-sm">
+            <span className="text-[14px] text-ink">Email notifications</span>
+            <Toggle on={form.notify_email} onChange={v => setForm(f => ({ ...f, notify_email: v }))} />
+          </div>
+          <div className="flex items-center justify-between max-w-sm">
+            <span className="text-[14px] text-ink">In-app notifications</span>
+            <Toggle on={form.notify_in_app} onChange={v => setForm(f => ({ ...f, notify_in_app: v }))} />
+          </div>
+          <Banner status={status} />
+          <Button type="submit" size="sm" disabled={saving}>{saving ? 'Saving…' : 'Save profile'}</Button>
+        </form>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="text-[16px] font-semibold text-ink mb-1">Password</h3>
+        <p className="text-[13px] text-muted mb-5">Choose a password with at least 8 characters.</p>
+        <form onSubmit={submitPassword} className="space-y-4 max-w-sm">
+          <div>
+            <label className="block text-[13px] font-medium text-ink mb-2" htmlFor="pw-current">Current password</label>
+            <input id="pw-current" type="password" required
+              className="h-10 w-full rounded-md border border-hairline bg-surface px-3 text-[14px] text-ink"
+              value={pwForm.current_password}
+              onChange={e => setPwForm(f => ({ ...f, current_password: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-ink mb-2" htmlFor="pw-new">New password</label>
+            <input id="pw-new" type="password" required minLength={8}
+              className="h-10 w-full rounded-md border border-hairline bg-surface px-3 text-[14px] text-ink"
+              value={pwForm.new_password}
+              onChange={e => setPwForm(f => ({ ...f, new_password: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-ink mb-2" htmlFor="pw-confirm">Confirm new password</label>
+            <input id="pw-confirm" type="password" required minLength={8}
+              className="h-10 w-full rounded-md border border-hairline bg-surface px-3 text-[14px] text-ink"
+              value={pwForm.confirm_password}
+              onChange={e => setPwForm(f => ({ ...f, confirm_password: e.target.value }))}
+            />
+          </div>
+          <Banner status={pwStatus} />
+          <Button type="submit" size="sm" disabled={pwSaving}>{pwSaving ? 'Updating…' : 'Update password'}</Button>
+        </form>
+      </Card>
+    </div>
+  )
+}
+
+function OrganizationTab() {
+  const [tenant, setTenant] = useState(null)
+  const [form, setForm] = useState({ name: '', timezone: 'UTC', qa_rules_path: '' })
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState(null)
+
+  useEffect(() => {
+    getTenantSettings()
+      .then(data => { setTenant(data); setForm({ name: data.name, timezone: data.timezone, qa_rules_path: data.qa_rules_path || '' }) })
+      .catch(() => setTenant(false))
+  }, [])
+
+  async function save(e) {
+    e.preventDefault()
+    setStatus(null)
+    if (!form.name.trim()) {
+      setStatus({ type: 'error', message: 'Organization name is required.' })
+      return
+    }
+    setSaving(true)
+    try {
+      const updated = await updateTenantSettings({
+        name: form.name.trim(),
+        timezone: form.timezone,
+        qa_rules_path: form.qa_rules_path.trim() || null,
+      })
+      setTenant(updated)
+      setStatus({ type: 'success', message: 'Organization settings saved.' })
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not save organization settings.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (tenant === null) return <Card className="p-6 text-[14px] text-muted">Loading…</Card>
+  if (tenant === false) return <Card className="p-6 text-[14px] text-error">Couldn&rsquo;t load organization settings.</Card>
+
+  return (
+    <Card className="p-6">
+      <h3 className="text-[16px] font-semibold text-ink mb-1">Organization</h3>
+      <p className="text-[13px] text-muted mb-5">Only admins can change these settings.</p>
+      <form onSubmit={save} className="space-y-4 max-w-sm">
+        <div>
+          <label className="block text-[13px] font-medium text-ink mb-2" htmlFor="org-name">Organization name</label>
+          <input id="org-name" required
+            className="h-10 w-full rounded-md border border-hairline bg-surface px-3 text-[14px] text-ink"
+            value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className="block text-[13px] font-medium text-ink mb-2" htmlFor="org-timezone">Timezone</label>
+          <select id="org-timezone"
+            className="h-10 w-full rounded-md border border-hairline bg-surface px-3 text-[14px] text-ink"
+            value={form.timezone}
+            onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}
+          >
+            {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[13px] font-medium text-ink mb-2" htmlFor="org-qa-rules">QA rules file (optional override)</label>
+          <input id="org-qa-rules" placeholder="rules/qa_rules.yaml"
+            className="h-10 w-full rounded-md border border-hairline bg-surface px-3 text-[14px] font-mono text-ink"
+            value={form.qa_rules_path}
+            onChange={e => setForm(f => ({ ...f, qa_rules_path: e.target.value }))}
+          />
+          <p className="text-[12px] text-muted mt-1.5">Leave blank to use the platform default rule set.</p>
+        </div>
+        <Banner status={status} />
+        <Button type="submit" size="sm" disabled={saving}>{saving ? 'Saving…' : 'Save organization settings'}</Button>
+      </form>
+    </Card>
+  )
+}
+
 export default function Settings() {
-  const [tab, setTab] = useState('branding')
+  const [tab, setTab] = useState('account')
   const { tenant } = useTheme()
   const t = TENANTS[tenant]
 
@@ -29,6 +250,9 @@ export default function Settings() {
         </nav>
 
         <div className="space-y-5">
+          {tab === 'account' && <AccountTab />}
+          {tab === 'organization' && <OrganizationTab />}
+
           {tab === 'branding' && <>
             <Card className="p-6">
               <h3 className="text-[16px] font-semibold text-ink mb-1">White-label branding</h3>

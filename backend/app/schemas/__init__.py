@@ -31,6 +31,9 @@ class UserOut(BaseModel):
     tenant_id: str
     email: str
     role: str
+    name: str | None = None
+    notify_email: bool = True
+    notify_in_app: bool = True
 
 
 class SegmentOut(BaseModel):
@@ -141,3 +144,59 @@ class SearchHit(BaseModel):
     title: str
     score: float
     snippet: str
+
+
+class UserSettingsUpdate(BaseModel):
+    name: str | None = None
+    notify_email: bool | None = None
+    notify_in_app: bool | None = None
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class TenantSettingsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    timezone: str
+    qa_rules_path: str | None = None
+
+
+class TenantSettingsUpdate(BaseModel):
+    name: str | None = None
+    timezone: str | None = None
+    qa_rules_path: str | None = None
+
+
+class PlanOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    code: str
+    name: str
+    price_cents: int | None = None
+    call_quota: int | None = None
+
+
+class BillingSummaryOut(BaseModel):
+    plan: PlanOut
+    status: str
+    current_period_start: datetime
+    current_period_end: datetime
+    calls_used: int
+    call_quota: int | None = None
+
+
+class InvoiceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    amount_cents: int
+    status: str
+    period_start: datetime
+    period_end: datetime
+    issued_at: datetime
+
+
+class PlanChangeRequest(BaseModel):
+    plan_code: str
