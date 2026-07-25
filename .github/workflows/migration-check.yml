@@ -1,0 +1,99 @@
+name: Migration Check
+
+# Verifies Alembic migrations apply cleanly against a fresh Postgres database.
+# Catches: broken migrations, multiple heads (branch conflicts), downgrade bugs.
+#
+# SON-35 | Related: SON-21 (core CI), SON-9 (migrations this protects)
+
+on:
+  push:
+    branches: [main, staging]
+    paths: ['backend/**', '.github/workflows/migration-check.yml']
+  pull_request:
+    branches: [main, staging]
+    paths: ['backend/**']
+
+jobs:
+  check-migrations:
+    name: Alembic migration check
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sonic
+          POSTGRES_PASSWORD: sonic
+          POSTGRES_DB: sonic_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Alembic's env.py reads SONIC_DATABASE_URL via get_settings() and
+      # auto-converts +asyncpg to +psycopg2 for the sync engine.
+      SONIC_DATABASE_URL: postgresql+asyncpg://sonic:sonic@localhost:5432/sonic_test
+      # Silence optional services that aren't available in CI.
+      SONIC_REDIS_URL: redis://localhost:6379/0
+      SONIC_STORAGE_BACKEND: local
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install .[dev]
+
+      # ---------------------------------------------------------------
+      # Step 1: Verify there is exactly one migration head.
+      # Multiple heads means two branches added migrations off the same
+      # parent — a common merge conflict that must be resolved manually.
+      # ---------------------------------------------------------------
+      - name: Check for single migration head
+        run: |
+          HEAD_COUNT=$(alembic heads | wc -l)
+          echo "Migration heads found: $HEAD_COUNT"
+          if [ "$HEAD_COUNT" -ne 1 ]; then
+            echo "::error::Multiple migration heads detected! Run 'alembic merge heads' to resolve."
+            alembic heads
+            exit 1
+          fi
+          echo "✅ Single migration head confirmed."
+
+      # ---------------------------------------------------------------
+      # Step 2: Apply all migrations from scratch.
+      # This catches any migration that references a nonexistent table,
+      # column, or has a SQL syntax error.
+      # ---------------------------------------------------------------
+      - name: Upgrade to head
+        run: |
+          alembic upgrade head
+          echo "✅ All migrations applied successfully."
+
+      # ---------------------------------------------------------------
+      # Step 3: Round-trip test — downgrade all the way, then re-upgrade.
+      # Validates that downgrade() functions work and that the migration
+      # chain is fully reversible.
+      # ---------------------------------------------------------------
+      - name: Downgrade to base
+        run: |
+          alembic downgrade base
+          echo "✅ Downgrade to base completed."
+
+      - name: Re-upgrade to head
+        run: |
+          alembic upgrade head
+          echo "✅ Round-trip migration test passed."
