@@ -16,6 +16,36 @@ See the full engineering workflow in the team docs. Key points:
 - Keep commits small and focused.
 - Open PRs early — Draft PRs are encouraged.
 
+## Jira Automation
+
+Issue status on the board updates **automatically** as your branch/PR moves
+through its lifecycle — you should not need to drag cards yourself for the
+normal flow. This relies on the [GitHub for Jira](https://github.com/marketplace/jira-software-github)
+app being connected to this repo (Bad-Vibe-Coders/Sonic) and on the branch/PR
+naming convention above being followed, since that's how Jira matches a
+branch or PR back to an issue key.
+
+| When you... | The issue moves to... |
+|---|---|
+| Create a branch named `feature/SON-<number>-...` (or `fix/`, `chore/`) | **In Progress** |
+| Open a PR titled `[SON-<number>] ...` | **In Review** |
+| Merge that PR into `staging` | **Done** |
+
+These are configured as Jira Automation rules (Project settings →
+Automation), matching the same `SON-\d+` key and branch/PR patterns enforced
+by [`pr-validation.yml`](.github/workflows/pr-validation.yml) — if you ever
+change one, change the other so they don't drift apart.
+
+**If automation misfires** (wrong transition, or nothing happens): just move
+the issue manually on the board — the automation is a convenience layer on
+top of manual status changes, not a replacement for them, and moving a card
+by hand never conflicts with a later automated transition. Common causes of a
+misfire are a branch/PR name that doesn't match the pattern above (typo in
+the issue number, wrong prefix) or a PR merged into a branch other than
+`staging`. If a rule is consistently misbehaving, check its run history
+under Project settings → Automation → (rule name) → Audit log before
+assuming it's broken.
+
 ## Secret Scanning
 
 This repository uses [Gitleaks](https://github.com/gitleaks/gitleaks) to
