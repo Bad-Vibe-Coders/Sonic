@@ -1,7 +1,7 @@
 name: Frontend CI
 
-# Lints and builds the frontend on every push/PR touching frontend/ so style
-# drift and broken builds are both caught early (see SON-34).
+# Lints, tests, and builds the frontend on every push/PR touching frontend/ so style
+# drift, regressions, and broken builds are all caught early (see SON-34, SON-22).
 # Deploy step intentionally omitted — add it once the hosting target is chosen.
 
 on:
@@ -27,6 +27,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm test
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:
