@@ -16,8 +16,8 @@ router = APIRouter(tags=["search"])
 async def search(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_tenant_db)],
-    q: str = Query(min_length=1),
-    limit: int = 10,
+    q: str = Query(min_length=1, max_length=500),
+    limit: int = Query(default=10, ge=1, le=50),
 ):
     """Semantic search over transcript embeddings, with ILIKE fallback merge."""
     query_vec = embed_text(q)
