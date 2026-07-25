@@ -39,7 +39,7 @@ export default function AdminDashboard() {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="display d-lg text-ink">Good morning, Operator</h1>
-          <p className="text-muted mt-1">Here's how your organization is performing today.</p>
+          <p className="text-muted mt-1">Here&rsquo;s how your organization is performing today.</p>
         </div>
         <Button as={Link} to="/app/settings" variant="secondary"><Icon name="Settings" size={16} /> Org settings</Button>
       </div>

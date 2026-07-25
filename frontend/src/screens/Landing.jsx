@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion'
 import Pipeline from '../components/Pipeline'
-import { AreaChart, BarChart, Ring } from '../components/charts'
-import { Button, Card, Badge, Reveal, CountUp, Avatar } from '../components/ui'
+import { AreaChart, Ring } from '../components/charts'
+import { Button, Card, Badge, Reveal, CountUp } from '../components/ui'
 import { MarketingNav, MarketingFooter } from '../components/Marketing'
 import { Aurora, Particles, Mesh } from '../components/Backdrop'
 import MacWindow from '../components/MacWindow'
@@ -153,7 +153,7 @@ export default function Landing() {
                 <AreaChart data={[40, 30, 48, 22, 38, 18, 30, 14, 26]} height={64} />
                 <div className="mt-3 space-y-2 text-[13px]">
                   <p><span className="font-semibold text-ink">Agent:</span> I completely understand your frustration, let me fix that right now.</p>
-                  <p><span className="font-semibold text-ink">Caller:</span> I've called <mark className="bg-ai-to/15 text-ink rounded px-1">three times</mark> about this billing error.</p>
+                  <p><span className="font-semibold text-ink">Caller:</span> I&rsquo;ve called <mark className="bg-ai-to/15 text-ink rounded px-1">three times</mark> about this billing error.</p>
                 </div>
                 <div className="mt-4 rounded-lg bg-surface-card p-3 text-[13px]">
                   <div className="flex items-center gap-2 text-ink font-semibold mb-1"><span className="w-1.5 h-1.5 rounded-full ai-gradient" /> AI summary</div>
@@ -225,7 +225,7 @@ export default function Landing() {
 
       {/* ===== FEATURE DEEP-DIVES ===== */}
       <section className="max-w-content mx-auto px-6 pb-8 space-y-20">
-        {features.map((f, i) => (
+        {features.map((f) => (
           <Reveal key={f.tag}>
             <div className={`grid lg:grid-cols-2 gap-10 items-center ${f.reverse ? 'lg:[direction:rtl]' : ''}`}>
               <div className="lg:[direction:ltr]">
@@ -310,7 +310,7 @@ export default function Landing() {
       <section className="relative overflow-hidden py-20">
         <Aurora variant="soft" />
         <div className="relative max-w-content mx-auto px-6">
-        <Reveal className="text-center mb-12"><Badge className="mb-3">Loved by CX leaders</Badge><h2 className="display d-lg text-ink">Don't take our word for it</h2><p className="text-[15px] text-muted mt-2">Hover to pause and read.</p></Reveal>
+        <Reveal className="text-center mb-12"><Badge className="mb-3">Loved by CX leaders</Badge><h2 className="display d-lg text-ink">Don&rsquo;t take our word for it</h2><p className="text-[15px] text-muted mt-2">Hover to pause and read.</p></Reveal>
         <TestimonialWall />
         </div>
       </section>
@@ -398,7 +398,7 @@ function FeatureMock({ kind }) {
       <AreaChart data={[60, 52, 40, 30, 22, 34, 30, 48, 56]} height={56} />
       <div className="mt-4 space-y-2 text-[13px]">
         <p><span className="font-semibold text-info">Agent:</span> Let me reverse that duplicate <mark className="bg-info/15 text-info rounded px-1">$84.50</mark> charge now.</p>
-        <p><span className="font-semibold text-warning">Caller:</span> I'm about to <mark className="bg-error/15 text-error rounded px-1">cancel</mark> over this.</p>
+        <p><span className="font-semibold text-warning">Caller:</span> I&rsquo;m about to <mark className="bg-error/15 text-error rounded px-1">cancel</mark> over this.</p>
       </div>
     </div></MacWindow>
   )
@@ -420,7 +420,7 @@ function TCard({ t }) {
         </div>
         <Icon name="Quote" size={20} className="text-surface-strong group-hover/card:text-ai-to transition-colors" />
       </div>
-      <p className="relative text-[14px] text-ink flex-1 leading-relaxed">"{t.quote}"</p>
+      <p className="relative text-[14px] text-ink flex-1 leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
       <div className="relative flex items-center gap-3 mt-5 pt-4 border-t border-hairline">
         <span className="rounded-full p-0.5 ai-gradient shrink-0">
           <img src={`https://api.dicebear.com/9.x/toon-head/svg?seed=${encodeURIComponent(t.seed || t.name)}&radius=50&skinColor=f2d3b1,ffdbb4&hair=${t.hair || 'spiky,undercut'}&hairProbability=100&rearHairProbability=0&eyes=humble,wide,wink&beard=chin,fullBeard,longBeard,moustacheTwirl&beardProbability=100&backgroundColor=22d3ee,6366f1,8b5cf6,3b82f6,06b6d4`}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, Button, StatusChip, Avatar, Badge } from '../components/ui'
+import { Card, Button, StatusChip, Avatar } from '../components/ui'
 import { listConversations, uploadConversation, isAuthed } from '../lib/api'
 import Icon from '../components/Icon'
 

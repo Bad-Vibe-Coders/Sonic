@@ -1,14 +1,15 @@
 name: Frontend CI
 
-# Builds the frontend on every push/PR to main so broken builds are caught early.
+# Lints and builds the frontend on every push/PR touching frontend/ so style
+# drift and broken builds are both caught early (see SON-34).
 # Deploy step intentionally omitted — add it once the hosting target is chosen.
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
     paths: ['frontend/**', '.github/workflows/frontend-ci.yml']
   pull_request:
-    branches: [main]
+    branches: [main, staging]
     paths: ['frontend/**']
 
 jobs:
@@ -25,6 +26,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - run: npm run lint
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:
