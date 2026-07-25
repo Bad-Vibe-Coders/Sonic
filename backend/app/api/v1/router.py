@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     analytics,
     auth,
+    billing,
     conversations,
     health,
     notifications,
@@ -20,3 +21,4 @@ api_router.include_router(health.router)
 api_router.include_router(notifications.router)
 api_router.include_router(platform.router)
 api_router.include_router(settings.router)
+api_router.include_router(billing.router)
