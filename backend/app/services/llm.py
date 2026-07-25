@@ -10,6 +10,7 @@ so the calling stage can record a clean "skipped" instead of failing the run.
 import json
 import logging
 import os
+from typing import Any, cast
 
 import httpx
 
@@ -54,7 +55,7 @@ def _ollama_json(prompt: str, schema: dict, system: str | None) -> dict:
     body = resp.json()
     content = body.get("message", {}).get("content", "")
     try:
-        return json.loads(content)
+        return cast(dict[str, Any], json.loads(content))
     except json.JSONDecodeError as exc:
         raise LLMUnavailable(f"ollama returned non-JSON output: {content[:200]!r}") from exc
 
@@ -65,7 +66,7 @@ def _anthropic_json(prompt: str, schema: dict, system: str | None) -> dict:
     import anthropic
 
     client = anthropic.Anthropic()
-    kwargs = {"system": system} if system else {}
+    kwargs: dict[str, Any] = {"system": system} if system else {}
     try:
         response = client.messages.create(
             model=get_settings().llm_model,
@@ -81,4 +82,4 @@ def _anthropic_json(prompt: str, schema: dict, system: str | None) -> dict:
     if response.stop_reason == "refusal":
         raise LLMUnavailable("model refused")
     text = next((b.text for b in response.content if b.type == "text"), "")
-    return json.loads(text)
+    return cast(dict[str, Any], json.loads(text))

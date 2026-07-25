@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 
@@ -39,7 +39,7 @@ def create_token(user_id: str, tenant_id: str, role: str, token_type: str = "acc
         "tenant_id": tenant_id,
         "role": role,
         "type": token_type,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=minutes),
+        "exp": datetime.now(UTC) + timedelta(minutes=minutes),
     }
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 

@@ -1,5 +1,5 @@
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -33,7 +33,7 @@ async def volume(
     days: int = 14,
 ):
     """Daily conversation count for the last `days` days."""
-    since = datetime.now(timezone.utc) - timedelta(days=days - 1)
+    since = datetime.now(UTC) - timedelta(days=days - 1)
     rows = await db.scalars(
         select(Conversation.created_at).where(
             Conversation.tenant_id == user.tenant_id,

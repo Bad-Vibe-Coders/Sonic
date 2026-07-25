@@ -29,6 +29,7 @@ async def conversation_ws(websocket: WebSocket, conversation_id: str, token: str
 
     # Verify the conversation belongs to the caller's tenant.
     from sqlalchemy import select
+
     from app.core.db import AsyncSessionLocal
     from app.models import Conversation
 
