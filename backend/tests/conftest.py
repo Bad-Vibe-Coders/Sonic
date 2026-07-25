@@ -32,9 +32,9 @@ def _create_tables():
 @pytest.fixture(autouse=True)
 def _sync_pipeline(monkeypatch):
     """Run the pipeline inline instead of via Celery/Redis."""
+    import app.workers.tasks as tasks
     from app.pipeline.runner import run_stage
     from app.pipeline.stages import STAGE_NAMES
-    import app.workers.tasks as tasks
 
     def _inline(conversation_id: str):
         for stage in STAGE_NAMES:

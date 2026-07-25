@@ -41,7 +41,7 @@ async def upload_conversation(
         get_storage().put(key, data)
     except Exception as exc:
         await db.rollback()
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Storage unavailable: {exc}")
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Storage unavailable: {exc}") from exc
     conv.audio_key = key
     await db.commit()
 

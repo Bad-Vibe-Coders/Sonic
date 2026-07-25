@@ -38,6 +38,8 @@ ml = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+    "mypy>=1.11",
 ]
 
 [build-system]
@@ -50,3 +52,38 @@ include = ["app*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+# Standard starter set: pyflakes, pycodestyle, isort, pyupgrade, bugbear.
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501", # line length is enforced via formatter/line-length above, not worth failing builds over
+    "UP042", # str+Enum -> StrEnum touches serialization behavior; revisit deliberately, not as a lint autofix
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Env vars must be set before importing app modules (settings are cached at import time).
+"tests/conftest.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+# Scoped to the modules worth typing strictly for now; expand over time
+# (see SON-33) rather than retrofitting the whole tree — e.g. app/pipeline
+# has large, loosely-typed stage modules that would be noisy to fix upfront.
+[[tool.mypy.overrides]]
+module = "app.core.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+module = "app.services.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true

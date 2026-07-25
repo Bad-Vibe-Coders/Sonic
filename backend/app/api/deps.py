@@ -21,8 +21,8 @@ async def get_current_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
     try:
         payload = decode_token(credentials.credentials)
-    except pyjwt.PyJWTError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token")
+    except pyjwt.PyJWTError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token") from exc
     if payload.get("type") != "access":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Access token required")
     user = await db.get(User, payload["sub"])

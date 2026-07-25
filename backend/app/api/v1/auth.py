@@ -45,8 +45,8 @@ async def login(body: LoginRequest, db: Annotated[AsyncSession, Depends(get_db)]
 async def refresh(body: RefreshRequest, db: Annotated[AsyncSession, Depends(get_db)]):
     try:
         payload = decode_token(body.refresh_token)
-    except pyjwt.PyJWTError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token")
+    except pyjwt.PyJWTError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token") from exc
     if payload.get("type") != "refresh":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token required")
     user = await db.get(User, payload["sub"])

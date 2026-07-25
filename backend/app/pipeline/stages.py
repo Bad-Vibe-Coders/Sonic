@@ -24,7 +24,6 @@ from app.models import (
     Notification,
     NotificationKind,
     Segment,
-    StageRun,
     TenantMetrics,
 )
 from app.services import embeddings as emb
