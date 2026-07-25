@@ -1,4 +1,5 @@
 // Static UI config for the AI pipeline stages (labels/icons), not sample data.
+// Live per-stage state comes from the backend via pipelineHealth() in lib/api.js.
 
 export const PIPELINE = [
   { id: 'audio', label: 'Audio', icon: 'Mic', desc: 'Live & recorded ingest' },

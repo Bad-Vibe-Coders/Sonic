@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { KPICard, Card, SectionTitle, Button, Reveal } from '../components/ui'
 import { BarChart } from '../components/charts'
-import { PIPELINE } from '../lib/data'
+import { PIPELINE } from '../lib/pipeline'
 import { analyticsOverview, analyticsVolume, pipelineHealth, listNotifications } from '../lib/api'
 import Icon from '../components/Icon'
 
