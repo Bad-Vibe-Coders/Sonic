@@ -1,0 +1,19 @@
+# Gitleaks configuration for the Sonic project.
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+#
+# This file extends the default gitleaks ruleset and adds project-specific
+# allowlists so that known-safe placeholder files don't cause false positives.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Sonic project-wide allowlist"
+paths = [
+    # .env.example contains placeholder credentials (e.g. SONIC_S3_SECRET_KEY=sonic-secret)
+    # that are intentionally committed as documentation for developers.
+    '''\.env\.example$''',
+
+    # This config file itself can contain example secret patterns in comments.
+    '''\.gitleaks\.toml$''',
+]
