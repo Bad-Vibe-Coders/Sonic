@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, SectionTitle, StatusChip, KPICard, Reveal } from '../components/ui'
 import { BarChart } from '../components/charts'
-import { PIPELINE } from '../lib/data'
+import { PIPELINE } from '../lib/pipeline'
 import { platformOverview, platformTenants } from '../lib/api'
 import Icon from '../components/Icon'
 

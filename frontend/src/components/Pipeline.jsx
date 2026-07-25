@@ -1,4 +1,4 @@
-import { PIPELINE } from '../lib/data'
+import { PIPELINE } from '../lib/pipeline'
 import Icon from './Icon'
 
 // Animated horizontal pipeline: flowing pulse + data packets travel left->right.
