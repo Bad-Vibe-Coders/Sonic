@@ -3,7 +3,7 @@ import { MarketingPage } from '../../components/Marketing'
 import { Card, Badge, Button, Reveal } from '../../components/ui'
 import Pipeline from '../../components/Pipeline'
 import Icon from '../../components/Icon'
-import { PIPELINE } from '../../lib/data'
+import { PIPELINE } from '../../lib/pipeline'
 
 export default function PipelinePage() {
   return (

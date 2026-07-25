@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, SectionTitle, StatusChip, Reveal } from '../components/ui'
 import Pipeline from '../components/Pipeline'
-import { PIPELINE } from '../lib/data'
+import { PIPELINE } from '../lib/pipeline'
 import { pipelineHealth } from '../lib/api'
 import Icon from '../components/Icon'
 
