@@ -6,6 +6,7 @@ from app.api.v1 import (
     billing,
     conversations,
     health,
+    leads,
     notifications,
     platform,
     search,
@@ -22,3 +23,4 @@ api_router.include_router(notifications.router)
 api_router.include_router(platform.router)
 api_router.include_router(settings.router)
 api_router.include_router(billing.router)
+api_router.include_router(leads.router)

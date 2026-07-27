@@ -223,6 +223,23 @@ class Subscription(Base):
     plan: Mapped[Plan] = relationship()
 
 
+class Lead(Base):
+    """A marketing-site contact/demo-request submission (Enterprise, Pricing).
+
+    Not tenant-scoped — these come from prospects who don't have an account yet.
+    """
+
+    __tablename__ = "leads"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(32), default="enterprise")  # enterprise|pricing
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
 class Invoice(Base):
     """A billed period for a tenant. Amounts are stubbed from the plan price —
     no real payment provider is wired up yet."""
