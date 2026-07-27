@@ -200,3 +200,17 @@ class InvoiceOut(BaseModel):
 
 class PlanChangeRequest(BaseModel):
     plan_code: str
+
+
+class LeadCreate(BaseModel):
+    name: str
+    email: EmailStr
+    company: str | None = None
+    message: str | None = None
+    source: str = "enterprise"
+
+
+class LeadOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    created_at: datetime

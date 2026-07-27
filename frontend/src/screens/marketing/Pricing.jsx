@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MarketingPage } from '../../components/Marketing'
 import { Card, Badge, Button, Reveal } from '../../components/ui'
 import Icon from '../../components/Icon'
+import { LeadFormModal } from '../../components/LeadForm'
 
 const tiers = [
   { name: 'Starter', price: '$0', note: 'Up to 500 calls/mo', feats: ['ASR + diarization', 'Basic dashboard', '1 seat', 'Community support'] },
@@ -16,6 +18,7 @@ const faqs = [
 ]
 
 export default function Pricing() {
+  const [leadOpen, setLeadOpen] = useState(false)
   return (
     <MarketingPage>
       <section className="max-w-content mx-auto px-6 pt-20 pb-12 text-center">
@@ -35,7 +38,9 @@ export default function Pricing() {
               <ul className="space-y-2.5 mb-6 flex-1">
                 {t.feats.map(f => <li key={f} className={`flex items-center gap-2 text-[14px] ${t.featured ? 'text-white/80' : 'text-body'}`}><Icon name="Check" size={15} className={t.featured ? 'text-white' : 'text-success'} /> {f}</li>)}
               </ul>
-              <Button as={Link} to="/signup" variant="secondary" className="w-full">{t.price === 'Custom' ? 'Talk to sales' : 'Get started'}</Button>
+              {t.price === 'Custom'
+                ? <Button onClick={() => setLeadOpen(true)} variant="secondary" className="w-full">Talk to sales</Button>
+                : <Button as={Link} to="/signup" variant="secondary" className="w-full">Get started</Button>}
             </div>
           </Reveal>
         ))}
@@ -46,6 +51,7 @@ export default function Pricing() {
           {faqs.map(([q, a], i) => <Reveal key={q} delay={i * 0.05}><Card className="p-5"><h3 className="text-[15px] font-semibold text-ink mb-1">{q}</h3><p className="text-[14px] text-muted">{a}</p></Card></Reveal>)}
         </div>
       </section>
+      <LeadFormModal open={leadOpen} onClose={() => setLeadOpen(false)} source="pricing" />
     </MarketingPage>
   )
 }

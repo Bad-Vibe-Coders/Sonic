@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MarketingPage } from '../../components/Marketing'
 import { Card, Badge, Button, Reveal } from '../../components/ui'
 import Icon from '../../components/Icon'
+import { LeadFormModal } from '../../components/LeadForm'
 
 const items = [
   { icon: 'KeyRound', title: 'SSO & SCIM', body: 'SAML/OIDC single sign-on with automated user provisioning.' },
@@ -13,6 +15,7 @@ const items = [
 ]
 
 export default function Enterprise() {
+  const [leadOpen, setLeadOpen] = useState(false)
   return (
     <MarketingPage>
       <section className="bg-[#0b0b0d] text-white">
@@ -22,7 +25,7 @@ export default function Enterprise() {
             <Badge className="mb-5 !bg-white/10 !text-white">Enterprise</Badge>
             <h1 className="display d-xl max-w-3xl mx-auto relative">Security and scale for the <span className="ai-text">largest floors</span></h1>
             <p className="text-[18px] text-white/60 mt-5 max-w-xl mx-auto relative">Subdomain isolation, SSO, custom retention and a dedicated team — built for regulated, high-volume contact centers.</p>
-            <div className="flex justify-center gap-3 mt-8 relative"><Button as={Link} to="/signup" size="lg">Talk to sales</Button><Button as={Link} to="/platform" variant="secondary" size="lg" className="!bg-white/10 !text-white !border-white/20">View control plane</Button></div>
+            <div className="flex justify-center gap-3 mt-8 relative"><Button onClick={() => setLeadOpen(true)} size="lg">Talk to sales</Button><Button as={Link} to="/signup" variant="secondary" size="lg" className="!bg-white/10 !text-white !border-white/20">Start free</Button></div>
           </Reveal>
         </div>
       </section>
@@ -37,8 +40,9 @@ export default function Enterprise() {
       <section className="max-w-content mx-auto px-6 pb-24"><Reveal><Card soft className="p-12 text-center">
         <h2 className="display d-sm text-ink">Bring Sonic to your enterprise.</h2>
         <p className="text-[16px] text-muted mt-2 mb-6">Talk to our team about a tailored rollout.</p>
-        <Button as={Link} to="/signup" size="lg">Contact sales</Button>
+        <Button onClick={() => setLeadOpen(true)} size="lg">Contact sales</Button>
       </Card></Reveal></section>
+      <LeadFormModal open={leadOpen} onClose={() => setLeadOpen(false)} source="enterprise" />
     </MarketingPage>
   )
 }

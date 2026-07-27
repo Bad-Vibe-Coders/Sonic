@@ -120,6 +120,10 @@ export const listBillingPlans = () => request('/billing/plans')
 export const listInvoices = () => request('/billing/invoices')
 export const changePlan = (plan_code) => request('/billing/plan', { method: 'PUT', body: { plan_code } })
 
+// ---- Leads (public marketing-site contact/demo forms) ----
+export const submitLead = ({ name, email, company, message, source }) =>
+  request('/leads', { method: 'POST', body: { name, email, company, message, source } })
+
 // ---- Platform (cross-tenant admin) ----
 export const platformTenants = () => request('/platform/tenants')
 export const platformOverview = () => request('/platform/overview')
