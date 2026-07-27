@@ -17,6 +17,17 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     cors_origins: list[str] = ["http://localhost:5180"]
 
+    # rate limiting (slowapi) — storage defaults to redis_url; override (e.g. "memory://")
+    # for environments without Redis, such as tests.
+    rate_limit_storage_url: str | None = None
+    rate_limit_login: str = "8/minute"
+    rate_limit_register: str = "20/hour"
+    rate_limit_refresh: str = "30/minute"
+
+    @property
+    def effective_rate_limit_storage_url(self) -> str:
+        return self.rate_limit_storage_url or self.redis_url
+
     # storage
     storage_backend: str = "s3"  # "s3" | "local"
     s3_endpoint_url: str = "http://localhost:9000"

@@ -32,6 +32,21 @@ async def test_bad_password_and_duplicate_subdomain(client):
     assert dup.status_code == 409
 
 
+async def test_login_rate_limited_after_repeated_attempts(client):
+    await register_and_login(client, "throttle", "carl@throttle.example.com")
+
+    # Settings default is 8/minute; hammer past it with wrong credentials.
+    last = None
+    for _ in range(10):
+        last = await client.post("/api/v1/auth/login", json={
+            "email": "carl@throttle.example.com", "password": "wrong"})
+        if last.status_code == 429:
+            break
+
+    assert last.status_code == 429
+    assert "retry-after" in {h.lower() for h in last.headers}
+
+
 async def test_unauthenticated_access_rejected(client):
     resp = await client.get("/api/v1/conversations")
     assert resp.status_code == 401

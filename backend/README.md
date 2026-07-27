@@ -96,13 +96,31 @@ curl -s -X POST localhost:8000/api/v1/conversations -H "Authorization: Bearer $T
 
 | Endpoint | Description |
 |---|---|
-| `POST /auth/register` `login` `refresh`, `GET /auth/me` | JWT auth, tenant + RBAC (admin/manager/agent) |
+| `POST /auth/register` `login` `refresh`, `GET /auth/me` | JWT auth, tenant + RBAC (admin/manager/agent); `register`/`login`/`refresh` are rate-limited (see below) |
 | `POST /conversations` (multipart audio) | Upload → triggers the Celery stage chain |
 | `GET /conversations`, `GET /conversations/{id}` | List / full detail (segments, emotions, LLM summary, QA, prediction, stage timings) |
 | `GET /analytics/overview` | Per-tenant rollup metrics |
 | `GET /search?q=` | Embedding cosine search + keyword fallback |
 | `GET /health`, `GET /health/pipeline` | Liveness + per-stage dependency status |
 | `WS /ws/conversations/{id}?token=` | Live per-stage pipeline progress |
+
+## Rate limiting
+
+`/auth/login`, `/auth/register` and `/auth/refresh` are throttled per client IP via
+[slowapi](https://github.com/laurentS/slowapi), backed by Redis (`SONIC_REDIS_URL`)
+so limits hold across API replicas. Exceeding a limit returns `429` with a
+`Retry-After` header. Defaults (overridable via env, see `.env.example`):
+
+| Endpoint | Default | Why |
+|---|---|---|
+| `SONIC_RATE_LIMIT_LOGIN` | `8/minute` | Brute-force protection |
+| `SONIC_RATE_LIMIT_REGISTER` | `20/hour` | Signup abuse/spam prevention |
+| `SONIC_RATE_LIMIT_REFRESH` | `30/minute` | Sane ceiling (requires a valid refresh token, so lower risk) |
+
+`SONIC_RATE_LIMIT_STORAGE_URL` overrides the storage backend (defaults to
+`SONIC_REDIS_URL`) — set it to `memory://` for a single-process deploy without
+Redis. Tests always run against `memory://` since the test suite has no Redis
+dependency.
 
 ## Pipeline notes
 
