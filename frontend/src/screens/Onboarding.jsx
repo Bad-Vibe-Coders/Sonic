@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Card } from '../components/ui'
 import Logo from '../components/Logo'
 import Icon from '../components/Icon'
+import { getOnboardingStatus, completeOnboardingStep, finishOnboarding } from '../lib/api'
 
 const STEPS = [
   { key: 'source', title: 'Connect a data source', sub: 'Stream live calls or import recordings.' },
@@ -18,19 +19,50 @@ const sources = [
 export default function Onboarding() {
   const [step, setStep] = useState(0)
   const [src, setSrc] = useState('Twilio')
+  const [loaded, setLoaded] = useState(false)
+  const [completedSteps, setCompletedSteps] = useState([])
   const nav = useNavigate()
-  const next = () => step < 2 ? setStep(step + 1) : nav('/app/admin')
+
+  useEffect(() => {
+    let cancelled = false
+    getOnboardingStatus()
+      .then(status => {
+        if (cancelled) return
+        setCompletedSteps(status.completed_steps || [])
+        // Resume at the first step that isn't done yet, so a reload doesn't reset progress.
+        const firstIncomplete = STEPS.findIndex(s => !(status.completed_steps || []).includes(s.key))
+        setStep(firstIncomplete === -1 ? STEPS.length - 1 : firstIncomplete)
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoaded(true) })
+    return () => { cancelled = true }
+  }, [])
+
+  const skip = () => { finishOnboarding().catch(() => {}); nav('/app/admin') }
+
+  const next = async () => {
+    try { await completeOnboardingStep(STEPS[step].key) } catch { /* non-fatal, retried on reload */ }
+    setCompletedSteps(prev => prev.includes(STEPS[step].key) ? prev : [...prev, STEPS[step].key])
+    if (step < 2) {
+      setStep(step + 1)
+    } else {
+      await finishOnboarding().catch(() => {})
+      nav('/app/admin')
+    }
+  }
+
+  if (!loaded) return null
 
   return (
     <div className="min-h-screen bg-surface-soft py-12 px-6">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link to="/" className="flex items-center gap-2"><Logo size={28} /><span className="display text-[18px] text-ink">Sonic</span></Link>
-          <button onClick={() => nav('/app/admin')} className="text-[13px] text-muted hover:text-ink">Skip for now</button>
+          <button onClick={skip} className="text-[13px] text-muted hover:text-ink">Skip for now</button>
         </div>
 
         <div className="flex gap-2 mb-8">
-          {STEPS.map((s, i) => <div key={s.key} className={`h-1.5 flex-1 rounded-full ${i <= step ? 'ai-gradient' : 'bg-surface-strong'}`} />)}
+          {STEPS.map((s, i) => <div key={s.key} className={`h-1.5 flex-1 rounded-full ${i <= step || completedSteps.includes(s.key) ? 'ai-gradient' : 'bg-surface-strong'}`} />)}
         </div>
 
         <Card className="p-8">

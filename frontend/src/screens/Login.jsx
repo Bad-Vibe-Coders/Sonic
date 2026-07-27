@@ -5,7 +5,7 @@ import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { Button } from '../components/ui'
 import { TenantSwitcher, ThemeToggle } from '../layouts/Controls'
 import Icon from '../components/Icon'
-import { login } from '../lib/api'
+import { login, getOnboardingStatus } from '../lib/api'
 
 // Subdomain-aware login: the tenant's brand color + logo load BEFORE auth.
 export default function Login() {
@@ -22,7 +22,8 @@ export default function Login() {
     setBusy(true)
     try {
       await login(email, password)
-      nav('/app/admin')
+      const status = await getOnboardingStatus().catch(() => ({ completed_at: true }))
+      nav(status.completed_at ? '/app/admin' : '/onboarding')
     } catch (e) {
       setError(e.status === 401 ? 'Invalid email or password.' : `Sign-in failed: ${e.message}`)
     } finally {
