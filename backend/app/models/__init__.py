@@ -42,6 +42,8 @@ class Tenant(Base):
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
     # Overrides the global SONIC_QA_RULES_PATH default when set (see app/services/qa_rules.py).
     qa_rules_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    onboarding_completed_steps: Mapped[list] = mapped_column(JSON, default=list)
+    onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     users: Mapped[list["User"]] = relationship(back_populates="tenant")

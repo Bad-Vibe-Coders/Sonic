@@ -202,6 +202,15 @@ class PlanChangeRequest(BaseModel):
     plan_code: str
 
 
+class OnboardingStatusOut(BaseModel):
+    completed_steps: list[str] = []
+    completed_at: datetime | None = None
+
+
+class OnboardingStepUpdate(BaseModel):
+    step: str
+
+
 class LeadCreate(BaseModel):
     name: str
     email: EmailStr

@@ -120,6 +120,11 @@ export const listBillingPlans = () => request('/billing/plans')
 export const listInvoices = () => request('/billing/invoices')
 export const changePlan = (plan_code) => request('/billing/plan', { method: 'PUT', body: { plan_code } })
 
+// ---- Onboarding ----
+export const getOnboardingStatus = () => request('/onboarding')
+export const completeOnboardingStep = (step) => request('/onboarding/steps', { method: 'POST', body: { step } })
+export const finishOnboarding = () => request('/onboarding/finish', { method: 'POST' })
+
 // ---- Leads (public marketing-site contact/demo forms) ----
 export const submitLead = ({ name, email, company, message, source }) =>
   request('/leads', { method: 'POST', body: { name, email, company, message, source } })
