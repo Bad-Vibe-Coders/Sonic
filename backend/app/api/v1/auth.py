@@ -1,22 +1,29 @@
 from typing import Annotated
 
 import jwt as pyjwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.billing import DEFAULT_PLAN_CODE
+from app.core.config import get_settings
 from app.core.db import get_db
+from app.core.rate_limit import limiter
 from app.core.security import create_token, decode_token, hash_password, verify_password
 from app.models import Plan, Role, Subscription, Tenant, User
 from app.schemas import LoginRequest, RefreshRequest, RegisterRequest, TokenResponse, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+settings = get_settings()
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+@limiter.limit(settings.rate_limit_register)
+async def register(
+    request: Request, response: Response, body: RegisterRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     """Create a new tenant plus its first (admin) user."""
     if await db.scalar(select(Tenant).where(Tenant.subdomain == body.subdomain)):
         raise HTTPException(status.HTTP_409_CONFLICT, "Subdomain already taken")
@@ -38,7 +45,11 @@ async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(ge
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+@limiter.limit(settings.rate_limit_login)
+async def login(
+    request: Request, response: Response, body: LoginRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     user = await db.scalar(select(User).where(User.email == body.email))
     if user is None or not verify_password(body.password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
@@ -46,7 +57,11 @@ async def login(body: LoginRequest, db: Annotated[AsyncSession, Depends(get_db)]
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(body: RefreshRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+@limiter.limit(settings.rate_limit_refresh)
+async def refresh(
+    request: Request, response: Response, body: RefreshRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     try:
         payload = decode_token(body.refresh_token)
     except pyjwt.PyJWTError as exc:
