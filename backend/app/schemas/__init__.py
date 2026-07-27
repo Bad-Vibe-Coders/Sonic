@@ -200,3 +200,26 @@ class InvoiceOut(BaseModel):
 
 class PlanChangeRequest(BaseModel):
     plan_code: str
+
+
+class OnboardingStatusOut(BaseModel):
+    completed_steps: list[str] = []
+    completed_at: datetime | None = None
+
+
+class OnboardingStepUpdate(BaseModel):
+    step: str
+
+
+class LeadCreate(BaseModel):
+    name: str
+    email: EmailStr
+    company: str | None = None
+    message: str | None = None
+    source: str = "enterprise"
+
+
+class LeadOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    created_at: datetime

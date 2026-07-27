@@ -73,7 +73,7 @@ async def test_agent_cannot_fetch_a_colleagues_conversation_by_id(client):
 
 
 async def test_agent_can_fetch_their_own_conversation_by_id(client):
-    admin_headers = await register_and_login(client, "scope-c", "admin@scope-c.example.com")
+    await register_and_login(client, "scope-c", "admin@scope-c.example.com")
     await _add_agent("admin@scope-c.example.com", "agent@scope-c.example.com")
     agent_login = await client.post("/api/v1/auth/login", json={
         "email": "agent@scope-c.example.com", "password": "password123",

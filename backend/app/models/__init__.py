@@ -42,6 +42,8 @@ class Tenant(Base):
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
     # Overrides the global SONIC_QA_RULES_PATH default when set (see app/services/qa_rules.py).
     qa_rules_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    onboarding_completed_steps: Mapped[list] = mapped_column(JSON, default=list)
+    onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     users: Mapped[list["User"]] = relationship(back_populates="tenant")
@@ -221,6 +223,23 @@ class Subscription(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     plan: Mapped[Plan] = relationship()
+
+
+class Lead(Base):
+    """A marketing-site contact/demo-request submission (Enterprise, Pricing).
+
+    Not tenant-scoped — these come from prospects who don't have an account yet.
+    """
+
+    __tablename__ = "leads"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(32), default="enterprise")  # enterprise|pricing
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
 
 
 class Invoice(Base):

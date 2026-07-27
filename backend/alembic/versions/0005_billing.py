@@ -6,8 +6,9 @@ Create Date: 2026-07-25
 """
 import uuid
 
-import app.models  # noqa: F401
 import sqlalchemy as sa
+
+import app.models  # noqa: F401
 from alembic import op
 from app.core.billing import PLAN_CATALOG
 from app.core.db import Base

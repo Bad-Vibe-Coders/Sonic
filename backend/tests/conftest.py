@@ -11,6 +11,7 @@ os.environ.update({
     "SONIC_LOCAL_STORAGE_DIR": str(pathlib.Path(__file__).parent / "test_audio"),
     "SONIC_SECRET_KEY": "test-secret",
     "SONIC_QA_RULES_PATH": str(pathlib.Path(__file__).parents[1] / "rules" / "qa_rules.yaml"),
+    "SONIC_RATE_LIMIT_STORAGE_URL": "memory://",  # no Redis in the test environment
 })
 os.environ.pop("ANTHROPIC_API_KEY", None)
 os.environ.pop("HF_TOKEN", None)
@@ -55,6 +56,16 @@ def _sync_pipeline(monkeypatch):
     monkeypatch.setattr(events, "publish_pipeline_event", lambda *a, **k: None)
     import app.pipeline.runner as runner
     monkeypatch.setattr(runner, "publish_pipeline_event", lambda *a, **k: None)
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limits():
+    """Every test shares one client IP under ASGITransport, so counters must
+    reset between tests or unrelated tests would trip each other's limits."""
+    from app.core.rate_limit import limiter
+
+    limiter.reset()
+    yield
 
 
 @pytest_asyncio.fixture
