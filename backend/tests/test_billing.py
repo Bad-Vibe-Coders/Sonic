@@ -1,5 +1,5 @@
-from tests.test_pipeline import make_wav
 from tests.conftest import register_and_login
+from tests.test_pipeline import make_wav
 
 
 async def test_new_tenant_is_lazily_enrolled_in_default_plan(client):
