@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTheme, TENANTS } from '../theme/ThemeContext'
+import { useAuth } from '../lib/AuthContext'
 import Icon from '../components/Icon'
 
 export function ThemeToggle() {
@@ -29,7 +30,10 @@ function Dropdown({ button, children, width = 'w-56' }) {
   )
 }
 
-export function TenantSwitcher() {
+// Demo-only: lets the marketing/login screens preview per-tenant branding before
+// a token exists. It is deliberately NOT rendered anywhere inside the
+// authenticated app — see TenantBadge for that (SON-54).
+export function TenantSimulator() {
   const { tenant, setTenant } = useTheme()
   const t = TENANTS[tenant]
   return (
@@ -40,7 +44,7 @@ export function TenantSwitcher() {
         <Icon name="ChevronsUpDown" size={14} className="text-muted" />
       </button>
     }>
-      <div className="px-2 py-1.5 text-[11px] font-semibold text-muted uppercase">Switch organization</div>
+      <div className="px-2 py-1.5 text-[11px] font-semibold text-muted uppercase">Preview branding (demo)</div>
       {Object.values(TENANTS).map(o => (
         <button key={o.id} onClick={() => setTenant(o.id)}
           className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left hover:bg-surface-soft ${o.id === tenant ? 'bg-surface-soft' : ''}`}>
@@ -53,6 +57,20 @@ export function TenantSwitcher() {
         </button>
       ))}
     </Dropdown>
+  )
+}
+
+// The organization you are actually signed in to. Read-only by design: tenant
+// membership is decided by the JWT's tenant_id, not by a picker.
+export function TenantBadge() {
+  const { tenantName } = useAuth()
+  if (!tenantName) return null
+  const initials = tenantName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  return (
+    <span className="flex items-center gap-2 h-9 px-2.5 rounded-md border border-hairline bg-surface" title={tenantName}>
+      <span className="w-5 h-5 rounded ai-gradient text-white text-[10px] font-bold inline-flex items-center justify-center">{initials}</span>
+      <span className="text-[13px] font-semibold text-ink hidden sm:block">{tenantName}</span>
+    </span>
   )
 }
 

@@ -2,21 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from '../test/utils'
 import { AuthProvider, useAuth } from './AuthContext'
-import { me, isAuthed, clearTokens } from './api'
+import { me, isAuthed, clearTokens, getTenantSettings } from './api'
 
 vi.mock('./api', () => ({
   me: vi.fn(),
   isAuthed: vi.fn(),
   clearTokens: vi.fn(),
+  getTenantSettings: vi.fn(),
 }))
 
 function Probe() {
-  const { role, platformAdmin, loading } = useAuth()
+  const { role, platformAdmin, loading, tenantName } = useAuth()
   return (
     <div>
       <span data-testid="loading">{String(loading)}</span>
       <span data-testid="role">{String(role)}</span>
       <span data-testid="platformAdmin">{String(platformAdmin)}</span>
+      <span data-testid="tenantName">{String(tenantName)}</span>
     </div>
   )
 }
@@ -29,6 +31,8 @@ describe('AuthProvider', () => {
     me.mockReset()
     isAuthed.mockReset()
     clearTokens.mockReset()
+    getTenantSettings.mockReset()
+    getTenantSettings.mockResolvedValue({ id: 't1', name: 'Helix Health', timezone: 'UTC' })
   })
 
   it('does not call /auth/me when there is no token', () => {
@@ -82,6 +86,34 @@ describe('AuthProvider', () => {
     await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'))
     expect(clearTokens).not.toHaveBeenCalled()
     expect(screen.getByTestId('role')).toHaveTextContent('null')
+  })
+
+  it('exposes the real tenant name from /settings/tenant', async () => {
+    isAuthed.mockReturnValue(true)
+    me.mockResolvedValueOnce({ id: 'u1', role: 'agent' })
+    renderProvider()
+
+    await waitFor(() => expect(screen.getByTestId('tenantName')).toHaveTextContent('Helix Health'))
+  })
+
+  it('does not fetch the tenant when signed out', () => {
+    isAuthed.mockReturnValue(false)
+    renderProvider()
+
+    expect(getTenantSettings).not.toHaveBeenCalled()
+    expect(screen.getByTestId('tenantName')).toHaveTextContent('null')
+  })
+
+  it('keeps the session usable when the tenant lookup fails', async () => {
+    isAuthed.mockReturnValue(true)
+    me.mockResolvedValueOnce({ id: 'u1', role: 'admin' })
+    getTenantSettings.mockRejectedValueOnce(new Error('boom'))
+    renderProvider()
+
+    // Role still resolves; only the cosmetic name is missing.
+    await waitFor(() => expect(screen.getByTestId('role')).toHaveTextContent('admin'))
+    expect(screen.getByTestId('tenantName')).toHaveTextContent('null')
+    expect(clearTokens).not.toHaveBeenCalled()
   })
 
   it('throws if useAuth is used outside the provider', () => {
