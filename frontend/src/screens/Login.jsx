@@ -5,14 +5,16 @@ import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { Button } from '../components/ui'
 import { TenantSimulator, ThemeToggle } from '../layouts/Controls'
 import Icon from '../components/Icon'
-import { login, getOnboardingStatus, me } from '../lib/api'
+import { login, getOnboardingStatus } from '../lib/api'
 import { homeFor } from '../lib/roles'
+import { useAuth } from '../lib/AuthContext'
 
 // Subdomain-aware login: the tenant's brand color + logo load BEFORE auth.
 export default function Login() {
   const { tenant } = useTheme()
   const t = TENANTS[tenant]
   const nav = useNavigate()
+  const { refresh } = useAuth()
   // Where RequireAuth bounced us from, so a deep-link survives the login detour.
   const from = useLocation().state?.from
   const [email, setEmail] = useState('')
@@ -27,10 +29,12 @@ export default function Login() {
       await login(email, password)
       const status = await getOnboardingStatus().catch(() => ({ completed_at: true }))
       if (!status.completed_at) { nav('/onboarding'); return }
-      // Land on a page this account can actually open. Falling back to
-      // /app/admin for everyone meant a manager or agent hit a route their role
-      // is not allowed on and got bounced straight back out (SON-54).
-      const who = await me().catch(() => null)
+      // Pull the new identity into the shared context before navigating: the
+      // provider mounted while signed out, so without this the route guards
+      // still see no role and bounce straight back here. It also gives us the
+      // real role, so we can land on a page this account can actually open
+      // instead of sending everyone to /app/admin (SON-54).
+      const who = await refresh()
       nav(from || homeFor(who?.role))
     } catch (e) {
       setError(e.status === 401 ? 'Invalid email or password.' : `Sign-in failed: ${e.message}`)

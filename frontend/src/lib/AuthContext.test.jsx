@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from '../test/utils'
 import { AuthProvider, useAuth } from './AuthContext'
 import { me, isAuthed, clearTokens, getTenantSettings } from './api'
@@ -114,6 +114,31 @@ describe('AuthProvider', () => {
     await waitFor(() => expect(screen.getByTestId('role')).toHaveTextContent('admin'))
     expect(screen.getByTestId('tenantName')).toHaveTextContent('null')
     expect(clearTokens).not.toHaveBeenCalled()
+  })
+
+  it('re-resolves identity on refresh() after a sign-in', async () => {
+    // Regression guard: the provider mounts while signed out, so if refresh()
+    // did not re-run the lookup the guards would keep seeing no role and bounce
+    // the user straight back to /login after a successful login (SON-54).
+    isAuthed.mockReturnValue(false)
+    let ctx
+    function Grab() {
+      ctx = useAuth()
+      return <Probe />
+    }
+    renderWithProviders(<AuthProvider><Grab /></AuthProvider>)
+
+    expect(screen.getByTestId('role')).toHaveTextContent('null')
+
+    // Simulate login(): a token now exists and /auth/me answers.
+    isAuthed.mockReturnValue(true)
+    me.mockResolvedValueOnce({ id: 'u1', role: 'manager', platform_admin: false })
+
+    let returned
+    await act(async () => { returned = await ctx.refresh() })
+
+    expect(returned.role).toBe('manager')
+    await waitFor(() => expect(screen.getByTestId('role')).toHaveTextContent('manager'))
   })
 
   it('throws if useAuth is used outside the provider', () => {

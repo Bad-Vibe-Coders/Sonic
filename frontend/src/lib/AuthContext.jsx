@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { me, isAuthed, clearTokens, getTenantSettings } from './api'
 
 const AuthContext = createContext(null)
@@ -19,28 +19,32 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => (isAuthed() ? undefined : null))
   const [tenant, setTenant] = useState(null)
 
-  useEffect(() => {
-    let cancelled = false
-    if (!isAuthed()) { setUser(null); setTenant(null); return }
+  // Resolves the current identity. Callers sign in *after* this provider has
+  // mounted, so signing in has to be able to re-run it — otherwise the provider
+  // keeps the signed-out answer, the guards see no role, and the user is bounced
+  // back to /login immediately after a successful login.
+  const load = useCallback(async () => {
+    if (!isAuthed()) { setUser(null); setTenant(null); return null }
 
-    me()
-      .then(u => { if (!cancelled) setUser(u) })
-      .catch(err => {
-        if (cancelled) return
-        // A rejected token is indistinguishable from being signed out, so drop
-        // it rather than leaving the app in a half-authenticated state.
-        if (err.status === 401) clearTokens()
-        setUser(null)
-      })
-
+    setUser(undefined)
     // Tenant naming is cosmetic, so a failure here must never block the app or
     // invalidate the session — screens fall back to a neutral label.
-    getTenantSettings()
-      .then(t => { if (!cancelled) setTenant(t) })
-      .catch(() => { if (!cancelled) setTenant(null) })
+    getTenantSettings().then(setTenant).catch(() => setTenant(null))
 
-    return () => { cancelled = true }
+    try {
+      const u = await me()
+      setUser(u)
+      return u
+    } catch (err) {
+      // A rejected token is indistinguishable from being signed out, so drop it
+      // rather than leaving the app in a half-authenticated state.
+      if (err.status === 401) clearTokens()
+      setUser(null)
+      return null
+    }
   }, [])
+
+  useEffect(() => { load() }, [load])
 
   const value = {
     user: user ?? null,
@@ -49,6 +53,7 @@ export function AuthProvider({ children }) {
     loading: user === undefined,
     tenant,
     tenantName: tenant?.name ?? null,
+    refresh: load,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

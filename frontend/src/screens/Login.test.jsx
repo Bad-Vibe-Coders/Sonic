@@ -3,15 +3,20 @@ import userEvent from '@testing-library/user-event'
 import { screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from '../test/utils'
 import Login from './Login'
-import { login, getOnboardingStatus, me } from '../lib/api'
+import { login, getOnboardingStatus } from '../lib/api'
 
 vi.mock('../lib/api', () => ({
   login: vi.fn(),
   // Login awaits this after a successful sign-in to decide onboarding vs app
   // (SON-26). Without it the call throws and the navigate never happens.
   getOnboardingStatus: vi.fn(),
-  // Login reads the real role after sign-in to pick a landing page (SON-54).
-  me: vi.fn(),
+}))
+
+// Login refreshes the shared identity after sign-in and uses the returned role
+// to pick a landing page (SON-54).
+const mockRefresh = vi.fn()
+vi.mock('../lib/AuthContext', () => ({
+  useAuth: vi.fn(() => ({ refresh: mockRefresh })),
 }))
 
 const mockNavigate = vi.fn()
@@ -27,8 +32,8 @@ describe('Login', () => {
     // Default: onboarding already finished, so login goes straight to the app.
     getOnboardingStatus.mockReset()
     getOnboardingStatus.mockResolvedValue({ completed_at: '2026-01-01T00:00:00Z' })
-    me.mockReset()
-    me.mockResolvedValue({ id: 'u1', role: 'admin', platform_admin: false })
+    mockRefresh.mockReset()
+    mockRefresh.mockResolvedValue({ id: 'u1', role: 'admin', platform_admin: false })
   })
 
   it('calls login with the entered credentials and navigates on success', async () => {
@@ -50,7 +55,7 @@ describe('Login', () => {
     ['agent', '/app/agent'],
   ])('lands a %s on %s instead of always /app/admin', async (role, home) => {
     login.mockResolvedValueOnce({ access_token: 'tok' })
-    me.mockResolvedValueOnce({ id: 'u1', role, platform_admin: false })
+    mockRefresh.mockResolvedValueOnce({ id: 'u1', role, platform_admin: false })
     const user = userEvent.setup()
     renderWithProviders(<Login />)
 
@@ -61,7 +66,7 @@ describe('Login', () => {
 
   it('falls back to the most restricted home when the role lookup fails', async () => {
     login.mockResolvedValueOnce({ access_token: 'tok' })
-    me.mockRejectedValueOnce(new Error('network'))
+    mockRefresh.mockResolvedValueOnce(null)
     const user = userEvent.setup()
     renderWithProviders(<Login />)
 
