@@ -12,6 +12,13 @@ vi.mock('../lib/api', () => ({
   getOnboardingStatus: vi.fn(),
 }))
 
+// Login refreshes the shared identity after sign-in and uses the returned role
+// to pick a landing page (SON-54).
+const mockRefresh = vi.fn()
+vi.mock('../lib/AuthContext', () => ({
+  useAuth: vi.fn(() => ({ refresh: mockRefresh })),
+}))
+
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
@@ -25,6 +32,8 @@ describe('Login', () => {
     // Default: onboarding already finished, so login goes straight to the app.
     getOnboardingStatus.mockReset()
     getOnboardingStatus.mockResolvedValue({ completed_at: '2026-01-01T00:00:00Z' })
+    mockRefresh.mockReset()
+    mockRefresh.mockResolvedValue({ id: 'u1', role: 'admin', platform_admin: false })
   })
 
   it('calls login with the entered credentials and navigates on success', async () => {
@@ -38,6 +47,32 @@ describe('Login', () => {
 
     await waitFor(() => expect(login).toHaveBeenCalledWith('demo@sonic.dev', 'demo1234'))
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/app/admin'))
+  })
+
+  it.each([
+    ['admin', '/app/admin'],
+    ['manager', '/app/supervisor'],
+    ['agent', '/app/agent'],
+  ])('lands a %s on %s instead of always /app/admin', async (role, home) => {
+    login.mockResolvedValueOnce({ access_token: 'tok' })
+    mockRefresh.mockResolvedValueOnce({ id: 'u1', role, platform_admin: false })
+    const user = userEvent.setup()
+    renderWithProviders(<Login />)
+
+    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(home))
+  })
+
+  it('falls back to the most restricted home when the role lookup fails', async () => {
+    login.mockResolvedValueOnce({ access_token: 'tok' })
+    mockRefresh.mockResolvedValueOnce(null)
+    const user = userEvent.setup()
+    renderWithProviders(<Login />)
+
+    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/app/agent'))
   })
 
   it('returns to the route RequireAuth bounced from, when there is one', async () => {

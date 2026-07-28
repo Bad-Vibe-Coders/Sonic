@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useTheme, TENANTS } from '../theme/ThemeContext'
+import { useAuth } from '../lib/AuthContext'
 import { Card, Button, Toggle, StatusChip, Avatar } from '../components/ui'
 import Icon from '../components/Icon'
 import {
@@ -234,12 +234,13 @@ function OrganizationTab() {
 
 export default function Settings() {
   const [tab, setTab] = useState('account')
-  const { tenant } = useTheme()
-  const t = TENANTS[tenant]
+  // The real organization from the token, not the demo tenant preset.
+  const { tenantName } = useAuth()
+  const tenantInitials = (tenantName || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
     <div className="space-y-6">
-      <div><h1 className="display d-lg text-ink">Settings</h1><p className="text-muted mt-1">Configure {t.name}.</p></div>
+      <div><h1 className="display d-lg text-ink">Settings</h1><p className="text-muted mt-1">Configure {tenantName || 'your organization'}.</p></div>
       <div className="grid lg:grid-cols-[200px_1fr] gap-6">
         <nav className="flex lg:flex-col gap-1 overflow-x-auto">
           {TABS.map(x => (
@@ -256,18 +257,20 @@ export default function Settings() {
           {tab === 'branding' && <>
             <Card className="p-6">
               <h3 className="text-[16px] font-semibold text-ink mb-1">White-label branding</h3>
-              <p className="text-[13px] text-muted mb-5">Loads on your subdomain before sign-in. Switch tenants from the top bar to preview.</p>
+              {/* The tenant model stores no logo, brand colour or custom domain, so
+                  these read as unset rather than echoing a demo preset (SON-54). */}
+              <p className="text-[13px] text-muted mb-5">Per-tenant branding isn&rsquo;t stored yet — the palette below is the product default.</p>
               <div className="grid sm:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-[13px] font-medium text-ink mb-2">Logo</label>
-                  <div className="flex items-center gap-3"><span className="w-14 h-14 rounded-xl text-white font-bold text-[18px] flex items-center justify-center" style={{ background: 'rgb(var(--primary))' }}>{t.initials}</span><Button variant="secondary" size="sm">Upload</Button></div>
+                  <div className="flex items-center gap-3"><span className="w-14 h-14 rounded-xl text-white font-bold text-[18px] flex items-center justify-center" style={{ background: 'rgb(var(--primary))' }}>{tenantInitials}</span><Button variant="secondary" size="sm" disabled>Upload</Button></div>
                 </div>
                 <div>
                   <label className="block text-[13px] font-medium text-ink mb-2">Primary brand color</label>
-                  <div className="flex items-center gap-2"><span className="w-10 h-10 rounded-md border border-hairline" style={{ background: 'rgb(var(--primary))' }} /><span className="font-mono text-[13px] text-body">via .{t.id} tenant theme</span></div>
+                  <div className="flex items-center gap-2"><span className="w-10 h-10 rounded-md border border-hairline" style={{ background: 'rgb(var(--primary))' }} /><span className="font-mono text-[13px] text-muted">product default</span></div>
                 </div>
               </div>
-              <div className="mt-5 rounded-lg border border-hairline p-4 flex items-center justify-between"><span className="text-[14px] text-ink">Custom domain (CNAME)</span><span className="font-mono text-[13px] text-muted">app.{t.id}.com</span></div>
+              <div className="mt-5 rounded-lg border border-hairline p-4 flex items-center justify-between"><span className="text-[14px] text-ink">Custom domain (CNAME)</span><span className="font-mono text-[13px] text-muted">—</span></div>
             </Card>
           </>}
 

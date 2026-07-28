@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { ADMIN_ONLY, MANAGEMENT } from '../lib/roles'
-import { ThemeToggle, TenantSwitcher } from './Controls'
+import { ThemeToggle, TenantBadge } from './Controls'
 import Icon from '../components/Icon'
 import Logo from '../components/Logo'
 import { Avatar } from '../components/ui'
@@ -11,7 +11,9 @@ import { Avatar } from '../components/ui'
 // guards in App.jsx — the nav is a view of what you may open, not the gate.
 const ALL_NAV = [
   { to: '/app/admin', label: 'Admin', icon: 'LayoutDashboard', roles: ADMIN_ONLY },
-  { to: '/app/supervisor', label: 'Supervisor', icon: 'Gauge', roles: MANAGEMENT },
+  // Labelled "Team", not "Supervisor" — supervisor is not a backend role, and
+  // this is the manager-facing view (SON-54).
+  { to: '/app/supervisor', label: 'Team', icon: 'Gauge', roles: MANAGEMENT },
   { to: '/app/agent', label: 'My Calls', icon: 'Headphones' },
   { to: '/app/conversations', label: 'Conversations', icon: 'MessagesSquare' },
   { to: '/app/analytics', label: 'Analytics', icon: 'BarChart3', roles: MANAGEMENT },
@@ -65,7 +67,7 @@ export default function AppShell() {
             <input placeholder="Search conversations, agents…" className="bg-transparent outline-none text-[13px] text-ink w-full placeholder:text-muted" />
           </div>
           <div className="flex-1" />
-          <TenantSwitcher />
+          <TenantBadge />
           <ThemeToggle />
           <button onClick={() => nav('/app/notifications')} className="relative w-9 h-9 inline-flex items-center justify-center rounded-md border border-hairline bg-surface hover:bg-surface-soft">
             <Icon name="Bell" size={17} />

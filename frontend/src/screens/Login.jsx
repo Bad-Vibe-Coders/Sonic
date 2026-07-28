@@ -3,15 +3,18 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { Button } from '../components/ui'
-import { TenantSwitcher, ThemeToggle } from '../layouts/Controls'
+import { TenantSimulator, ThemeToggle } from '../layouts/Controls'
 import Icon from '../components/Icon'
 import { login, getOnboardingStatus } from '../lib/api'
+import { homeFor } from '../lib/roles'
+import { useAuth } from '../lib/AuthContext'
 
 // Subdomain-aware login: the tenant's brand color + logo load BEFORE auth.
 export default function Login() {
   const { tenant } = useTheme()
   const t = TENANTS[tenant]
   const nav = useNavigate()
+  const { refresh } = useAuth()
   // Where RequireAuth bounced us from, so a deep-link survives the login detour.
   const from = useLocation().state?.from
   const [email, setEmail] = useState('')
@@ -25,8 +28,14 @@ export default function Login() {
     try {
       await login(email, password)
       const status = await getOnboardingStatus().catch(() => ({ completed_at: true }))
-      if (!status.completed_at) nav('/onboarding')
-      else nav(from || '/app/admin')
+      if (!status.completed_at) { nav('/onboarding'); return }
+      // Pull the new identity into the shared context before navigating: the
+      // provider mounted while signed out, so without this the route guards
+      // still see no role and bounce straight back here. It also gives us the
+      // real role, so we can land on a page this account can actually open
+      // instead of sending everyone to /app/admin (SON-54).
+      const who = await refresh()
+      nav(from || homeFor(who?.role))
     } catch (e) {
       setError(e.status === 401 ? 'Invalid email or password.' : `Sign-in failed: ${e.message}`)
     } finally {
@@ -37,8 +46,11 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-surface-soft relative">
       <div className="absolute top-5 right-5 flex gap-2 items-center">
-        <span className="text-[12px] text-muted hidden sm:block mr-1">Simulate tenant:</span>
-        <TenantSwitcher /><ThemeToggle />
+        {/* Demo-only branding preview. Before sign-in there is no token, so the
+            real tenant is unknown; in a real deployment this comes from the
+            subdomain. It never affects which organization you log in to. */}
+        <span className="text-[12px] text-muted hidden sm:block mr-1">Preview branding:</span>
+        <TenantSimulator /><ThemeToggle />
       </div>
 
       <motion.div key={tenant} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}

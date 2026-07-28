@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from './test/utils'
 import App from './App'
-import { isAuthed, me } from './lib/api'
+import { isAuthed, me, getTenantSettings } from './lib/api'
 
 // Keep every real export (App pulls in screens that import many of them) and
 // stub only the two the guard path depends on.
@@ -10,6 +10,7 @@ vi.mock('./lib/api', async (importOriginal) => ({
   ...(await importOriginal()),
   isAuthed: vi.fn(),
   me: vi.fn(),
+  getTenantSettings: vi.fn(),
 }))
 
 // Routes a browser could previously reach just by typing the URL.
@@ -24,14 +25,17 @@ const PROTECTED_ROUTES = [
 const signedInAs = (role, platform_admin = false) => {
   isAuthed.mockReturnValue(true)
   me.mockResolvedValue({ id: 'u1', tenant_id: 't1', email: 'u@e.com', role, platform_admin })
+  getTenantSettings.mockResolvedValue({ id: 't1', name: 'Helix Health', timezone: 'UTC' })
 }
 
-const onLoginScreen = () => screen.queryByText('Simulate tenant:') !== null
+const onLoginScreen = () => screen.queryByText('Preview branding:') !== null
 
 describe('App route guarding — unauthenticated', () => {
   beforeEach(() => {
     isAuthed.mockReset()
     me.mockReset()
+    getTenantSettings.mockReset()
+    getTenantSettings.mockResolvedValue({ id: 't1', name: 'Helix Health', timezone: 'UTC' })
   })
 
   it.each(PROTECTED_ROUTES)('redirects %s to /login', (route) => {
@@ -39,7 +43,7 @@ describe('App route guarding — unauthenticated', () => {
     renderWithProviders(<App />, { route })
 
     // Login is identifiable by its tenant-simulation control.
-    expect(screen.getByText('Simulate tenant:')).toBeInTheDocument()
+    expect(screen.getByText('Preview branding:')).toBeInTheDocument()
     expect(me).not.toHaveBeenCalled()
   })
 })
@@ -48,6 +52,8 @@ describe('App route guarding — role enforcement', () => {
   beforeEach(() => {
     isAuthed.mockReset()
     me.mockReset()
+    getTenantSettings.mockReset()
+    getTenantSettings.mockResolvedValue({ id: 't1', name: 'Helix Health', timezone: 'UTC' })
   })
 
   // Admin-only screens, identified by copy unique to each, paired with the
@@ -131,10 +137,40 @@ describe('App route guarding — role enforcement', () => {
   })
 })
 
+describe('App tenant identity', () => {
+  beforeEach(() => {
+    isAuthed.mockReset()
+    me.mockReset()
+    getTenantSettings.mockReset()
+  })
+
+  it('shows the real tenant from /settings/tenant, with no way to switch it', async () => {
+    signedInAs('admin')
+    getTenantSettings.mockResolvedValue({ id: 't1', name: 'NorthBank', timezone: 'UTC' })
+    renderWithProviders(<App />, { route: '/app/admin' })
+
+    expect(await screen.findByText('NorthBank')).toBeInTheDocument()
+    // The demo simulator must not appear anywhere inside the authenticated app.
+    expect(screen.queryByText('Preview branding (demo)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Preview branding:')).not.toBeInTheDocument()
+  })
+
+  it('labels the manager view "Team" rather than a non-existent supervisor role', async () => {
+    signedInAs('manager')
+    getTenantSettings.mockResolvedValue({ id: 't1', name: 'Helix Health', timezone: 'UTC' })
+    renderWithProviders(<App />, { route: '/app/supervisor' })
+
+    expect(await screen.findByRole('link', { name: /Team/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Supervisor/i })).not.toBeInTheDocument()
+  })
+})
+
 describe('App public routes', () => {
   beforeEach(() => {
     isAuthed.mockReset()
     me.mockReset()
+    getTenantSettings.mockReset()
+    getTenantSettings.mockResolvedValue({ id: 't1', name: 'Helix Health', timezone: 'UTC' })
   })
 
   it.each(['/', '/pricing', '/login', '/signup'])('leaves %s reachable', (route) => {
