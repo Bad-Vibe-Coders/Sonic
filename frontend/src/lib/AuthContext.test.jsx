@@ -2,13 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from '../test/utils'
 import { AuthProvider, useAuth } from './AuthContext'
-import { me, isAuthed, clearTokens, getTenantSettings } from './api'
+import { me, isAuthed, clearTokens, getTenantSettings, setSessionExpiredHandler } from './api'
 
 vi.mock('./api', () => ({
   me: vi.fn(),
   isAuthed: vi.fn(),
   clearTokens: vi.fn(),
   getTenantSettings: vi.fn(),
+  // AuthProvider registers the global expiry handler here (SON-60).
+  setSessionExpiredHandler: vi.fn(() => () => {}),
 }))
 
 function Probe() {
@@ -33,6 +35,8 @@ describe('AuthProvider', () => {
     clearTokens.mockReset()
     getTenantSettings.mockReset()
     getTenantSettings.mockResolvedValue({ id: 't1', name: 'Helix Health', timezone: 'UTC' })
+    setSessionExpiredHandler.mockClear()
+    setSessionExpiredHandler.mockImplementation(() => () => {})
   })
 
   it('does not call /auth/me when there is no token', () => {

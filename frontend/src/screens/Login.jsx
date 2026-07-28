@@ -16,7 +16,11 @@ export default function Login() {
   const nav = useNavigate()
   const { refresh } = useAuth()
   // Where RequireAuth bounced us from, so a deep-link survives the login detour.
-  const from = useLocation().state?.from
+  const { state } = useLocation()
+  const from = state?.from
+  // Set when a session died mid-use, so the bounce back here is explained
+  // rather than looking like a random logout (SON-60).
+  const expired = Boolean(state?.expired)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
@@ -77,6 +81,7 @@ export default function Login() {
               <input value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} type="password" placeholder="••••••••" className="flex-1 bg-transparent outline-none text-ink text-[15px]" />
             </div>
           </div>
+          {expired && !error && <p className="text-[13px] text-warning flex items-center gap-1.5"><Icon name="AlertCircle" size={14} /> Your session expired. Please sign in again.</p>}
           {error && <p className="text-[13px] text-error flex items-center gap-1.5"><Icon name="AlertCircle" size={14} /> {error}</p>}
           <Button className="w-full" style={{ background: 'rgb(var(--primary))', color: 'rgb(var(--on-primary))' }} disabled={busy} onClick={submit}>{busy ? 'Signing in…' : `Sign in to ${t.name}`}</Button>
           <button
