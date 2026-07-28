@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_tenant_db
-from app.models import Conversation, User
+from app.models import Conversation, Role, User
 from app.schemas import SearchHit
 from app.services.embeddings import cosine, embed_text
 
@@ -21,12 +21,15 @@ async def search(
 ):
     """Semantic search over transcript embeddings, with ILIKE fallback merge."""
     query_vec = embed_text(q)
-    rows = (await db.scalars(
-        select(Conversation).where(
-            Conversation.tenant_id == user.tenant_id,
-            Conversation.transcript.is_not(None),
-        )
-    )).all()
+    query = select(Conversation).where(
+        Conversation.tenant_id == user.tenant_id,
+        Conversation.transcript.is_not(None),
+    )
+    # Agents only ever browse their own calls (see conversations.py) -- search
+    # must respect the same scoping or it becomes a bypass for that boundary.
+    if user.role == Role.agent:
+        query = query.where(Conversation.uploaded_by == user.id)
+    rows = (await db.scalars(query)).all()
 
     hits: list[SearchHit] = []
     for conv in rows:

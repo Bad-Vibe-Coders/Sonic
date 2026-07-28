@@ -6,6 +6,7 @@ conversations) and input validation on the query/limit params.
 from app.core.db import AsyncSessionLocal
 from app.models import Conversation
 from tests.conftest import register_and_login
+from tests.test_agent_conversation_scope import _add_agent
 from tests.test_pipeline import make_wav
 
 
@@ -56,6 +57,34 @@ async def test_search_cannot_return_other_tenants_data(client):
     assert other.status_code == 200
     assert conv_a not in [h["conversation_id"] for h in other.json()]
     assert other.json() == []
+
+
+async def test_search_respects_agent_conversation_scoping(client):
+    """SON-52: search must not bypass the same agent-only-sees-own-calls
+    boundary conversations.py enforces (a prior gap let agents search the
+    whole tenant's transcripts via /search)."""
+    admin_headers = await register_and_login(client, "search-scope", "admin@search-scope.example.com")
+    await _add_agent("admin@search-scope.example.com", "agent@search-scope.example.com")
+    agent_login = await client.post("/api/v1/auth/login", json={
+        "email": "agent@search-scope.example.com", "password": "password123",
+    })
+    agent_headers = {"Authorization": f"Bearer {agent_login.json()['access_token']}"}
+
+    admin_conv = await _upload(client, admin_headers)
+    await _set_transcript(admin_conv, "A very distinctive platypus billing dispute.")
+    agent_conv = await _upload(client, agent_headers)
+    await _set_transcript(agent_conv, "A platypus themed onboarding call.")
+
+    # Admin (non-agent role) can find both.
+    admin_hits = await client.get("/api/v1/search", params={"q": "platypus"}, headers=admin_headers)
+    admin_ids = {h["conversation_id"] for h in admin_hits.json()}
+    assert {admin_conv, agent_conv} <= admin_ids
+
+    # Agent only ever finds their own upload, even though the admin's
+    # transcript matches the same query term.
+    agent_hits = await client.get("/api/v1/search", params={"q": "platypus"}, headers=agent_headers)
+    agent_ids = {h["conversation_id"] for h in agent_hits.json()}
+    assert agent_ids == {agent_conv}
 
 
 async def test_search_requires_authentication(client):
