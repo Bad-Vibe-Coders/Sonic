@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import ScrollToTop from './components/ScrollToTop'
 import Spotlight from './components/Spotlight'
 import RequireAuth from './components/RequireAuth'
+import { AuthProvider, useAuth } from './lib/AuthContext'
+import { MANAGEMENT, ADMIN_ONLY, homeFor } from './lib/roles'
 import AppShell from './layouts/AppShell'
 import AdminShell from './layouts/AdminShell'
 
@@ -28,9 +30,17 @@ import States from './screens/States'
 
 import { PlatformOverview, PlatformTenants, PlatformBilling, PlatformHealth } from './screens/SuperAdmin'
 
+// Land each role on a page it can actually open, instead of bouncing everyone
+// through /app/admin and letting the guard reject non-admins.
+function RoleHome() {
+  const { role, loading } = useAuth()
+  if (loading) return null
+  return <Navigate to={homeFor(role)} replace />
+}
+
 export default function App() {
   return (
-    <>
+    <AuthProvider>
     <ScrollToTop />
     <Spotlight />
     <Routes>
@@ -48,33 +58,43 @@ export default function App() {
         {/* post-signup flow — reads/writes onboarding progress for the logged-in tenant */}
         <Route path="/onboarding" element={<Onboarding />} />
 
-        {/* tenant app */}
+        {/* tenant app. Roles are the real backend ones (admin|manager|agent);
+            each route re-declares what it needs so a URL can't outrun the nav. */}
         <Route path="/app" element={<AppShell />}>
-          <Route index element={<Navigate to="/app/admin" replace />} />
-          <Route path="admin" element={<AdminDashboard />} />
-          <Route path="supervisor" element={<SupervisorDashboard />} />
-          <Route path="agent" element={<AgentView />} />
+          <Route index element={<RoleHome />} />
           <Route path="conversations" element={<ConversationList />} />
           <Route path="conversations/:id" element={<ConversationReplay />} />
-          <Route path="analytics" element={<ExecAnalytics />} />
-          <Route path="health" element={<SystemHealth />} />
-          <Route path="settings" element={<Settings />} />
           <Route path="notifications" element={<Notifications />} />
-          <Route path="billing" element={<Billing />} />
-          <Route path="states" element={<States />} />
+          <Route path="agent" element={<AgentView />} />
+
+          <Route element={<RequireAuth roles={MANAGEMENT} />}>
+            <Route path="supervisor" element={<SupervisorDashboard />} />
+            <Route path="analytics" element={<ExecAnalytics />} />
+          </Route>
+
+          <Route element={<RequireAuth roles={ADMIN_ONLY} />}>
+            <Route path="admin" element={<AdminDashboard />} />
+            <Route path="health" element={<SystemHealth />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="billing" element={<Billing />} />
+            <Route path="states" element={<States />} />
+          </Route>
         </Route>
 
-        {/* platform super admin */}
-        <Route path="/platform" element={<AdminShell />}>
-          <Route index element={<PlatformOverview />} />
-          <Route path="tenants" element={<PlatformTenants />} />
-          <Route path="billing" element={<PlatformBilling />} />
-          <Route path="health" element={<PlatformHealth />} />
+        {/* platform super admin — gated on the platform_admin flag from /auth/me,
+            the same flag the backend's require_platform_admin enforces. */}
+        <Route element={<RequireAuth platformAdmin />}>
+          <Route path="/platform" element={<AdminShell />}>
+            <Route index element={<PlatformOverview />} />
+            <Route path="tenants" element={<PlatformTenants />} />
+            <Route path="billing" element={<PlatformBilling />} />
+            <Route path="health" element={<PlatformHealth />} />
+          </Route>
         </Route>
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-    </>
+    </AuthProvider>
   )
 }

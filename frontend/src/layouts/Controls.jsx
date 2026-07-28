@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useTheme, TENANTS, ROLES } from '../theme/ThemeContext'
+import { useTheme, TENANTS } from '../theme/ThemeContext'
 import Icon from '../components/Icon'
 
 export function ThemeToggle() {
@@ -57,25 +56,6 @@ export function TenantSwitcher() {
   )
 }
 
-export function RoleSwitcher() {
-  const { role, setRole } = useTheme()
-  const nav = useNavigate()
-  return (
-    <Dropdown button={
-      <button className="flex items-center gap-2 h-9 px-2.5 rounded-md border border-hairline bg-surface hover:bg-surface-soft transition">
-        <Icon name="UserCog" size={15} className="text-muted" />
-        <span className="text-[13px] font-medium text-ink hidden md:block">{ROLES[role].label}</span>
-        <Icon name="ChevronDown" size={14} className="text-muted" />
-      </button>
-    }>
-      <div className="px-2 py-1.5 text-[11px] font-semibold text-muted uppercase">View as role</div>
-      {Object.values(ROLES).map(r => (
-        <button key={r.id} onClick={() => { setRole(r.id); nav(r.home) }}
-          className={`w-full flex items-center justify-between px-2 py-2 rounded-md text-left hover:bg-surface-soft ${r.id === role ? 'bg-surface-soft' : ''}`}>
-          <span className="text-[13px] text-ink">{r.label}</span>
-          {r.id === role && <Icon name="Check" size={15} className="text-success" />}
-        </button>
-      ))}
-    </Dropdown>
-  )
-}
+// RoleSwitcher removed in SON-53: it let anyone "become" another role client-side,
+// which is meaningless now that access is decided by the server-verified role from
+// /auth/me. Sign in as a user with the role you want to see.

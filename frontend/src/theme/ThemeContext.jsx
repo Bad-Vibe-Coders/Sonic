@@ -7,13 +7,9 @@ export const TENANTS = {
   northbank: { id: 'northbank', name: 'NorthBank', cls: 'tenant-northbank', initials: 'NB', sector: 'Financial Services' },
 }
 
-export const ROLES = {
-  admin: { id: 'admin', label: 'Tenant Admin', home: '/app/admin' },
-  supervisor: { id: 'supervisor', label: 'Supervisor / QA', home: '/app/supervisor' },
-  analyst: { id: 'analyst', label: 'QA Analyst', home: '/app/conversations' },
-  agent: { id: 'agent', label: 'Agent', home: '/app/agent' },
-  exec: { id: 'exec', label: 'Executive', home: '/app/analytics' },
-}
+// The demo ROLES map lived here and drove a client-side "view as role" switcher.
+// Removed in SON-53: roles are now the server-verified ones from /auth/me
+// (see lib/roles.js), so a local override would only ever be misleading.
 
 export function ThemeProvider({ children }) {
   const [dark, setDark] = useState(() => {
@@ -22,7 +18,6 @@ export function ThemeProvider({ children }) {
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   })
   const [tenant, setTenant] = useState('helix')
-  const [role, setRole] = useState('admin')
 
   useEffect(() => {
     const root = document.documentElement
@@ -33,7 +28,7 @@ export function ThemeProvider({ children }) {
   }, [dark, tenant])
 
   return (
-    <ThemeContext.Provider value={{ dark, setDark, tenant, setTenant, role, setRole }}>
+    <ThemeContext.Provider value={{ dark, setDark, tenant, setTenant }}>
       {children}
     </ThemeContext.Provider>
   )
