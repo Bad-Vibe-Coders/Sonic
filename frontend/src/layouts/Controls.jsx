@@ -1,7 +1,10 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { useAuth } from '../lib/AuthContext'
+import { logout } from '../lib/api'
 import Icon from '../components/Icon'
+import { Avatar } from '../components/ui'
 
 export function ThemeToggle() {
   const { dark, setDark } = useTheme()
@@ -71,6 +74,28 @@ export function TenantBadge() {
       <span className="w-5 h-5 rounded ai-gradient text-white text-[10px] font-bold inline-flex items-center justify-center">{initials}</span>
       <span className="text-[13px] font-semibold text-ink hidden sm:block">{tenantName}</span>
     </span>
+  )
+}
+
+// Avatar + logout. The only place a session can be ended from the UI (SON-56).
+export function UserMenu() {
+  const { user } = useAuth()
+  const nav = useNavigate()
+  const label = user?.email || 'Account'
+
+  function handleLogout() {
+    logout()
+    nav('/login')
+  }
+
+  return (
+    <Dropdown width="w-52" button={<button title={label}><Avatar name={label} size={34} /></button>}>
+      <div className="px-2 py-1.5 text-[13px] font-medium text-ink truncate">{label}</div>
+      <button onClick={handleLogout}
+        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left text-[13px] font-medium text-error hover:bg-surface-soft">
+        <Icon name="LogOut" size={15} /> Sign out
+      </button>
+    </Dropdown>
   )
 }
 
