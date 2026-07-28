@@ -148,7 +148,30 @@ export async function register({ tenant_name, subdomain, email, password }) {
 }
 
 export const me = () => request('/auth/me')
-export const logout = clearTokens
+
+// Ends this device's session server-side, so the refresh token cannot be used
+// again even if someone has a copy of it (SON-61). Previously logout only
+// cleared localStorage, which left an exfiltrated token valid for its full
+// 14-day life.
+//
+// The local tokens are dropped whatever the server says: the user asked to be
+// signed out, and a failed call must not leave them apparently signed in.
+export async function logout() {
+  const refresh_token = localStorage.getItem(REFRESH_KEY)
+  try {
+    if (refresh_token) await request('/auth/logout', { method: 'POST', body: { refresh_token } })
+  } catch { /* best effort — the local session ends regardless */ }
+  clearTokens()
+}
+
+// "Sign out everywhere" — revokes every refresh token this user holds, which is
+// the recovery path for a token you believe was stolen.
+export async function logoutAll() {
+  try {
+    await request('/auth/logout-all', { method: 'POST' })
+  } catch { /* best effort — the local session ends regardless */ }
+  clearTokens()
+}
 
 // ---- Conversations ----
 export const listConversations = ({ limit = 50, offset = 0 } = {}) =>
