@@ -31,6 +31,10 @@ class UserOut(BaseModel):
     tenant_id: str
     email: str
     role: str
+    # Cross-tenant platform access. Exposed so the frontend can gate the
+    # /platform routes on the same flag require_platform_admin enforces
+    # (it is not a JWT claim, so /auth/me is the only place clients see it).
+    platform_admin: bool = False
     name: str | None = None
     notify_email: bool = True
     notify_in_app: bool = True

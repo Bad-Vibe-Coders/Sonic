@@ -20,6 +20,16 @@ async def test_register_login_refresh_me(client):
     assert refreshed.json()["access_token"]
 
 
+async def test_me_exposes_role_and_platform_admin(client):
+    """The frontend gates its /platform routes on platform_admin, and it is not a
+    JWT claim — /auth/me is the only place a client can read it (SON-53)."""
+    headers = await register_and_login(client, "claims", "claims@claims.example.com")
+
+    body = (await client.get("/api/v1/auth/me", headers=headers)).json()
+    assert body["role"] == "admin"          # first user of a tenant
+    assert body["platform_admin"] is False  # tenant admin != platform admin
+
+
 async def test_bad_password_and_duplicate_subdomain(client):
     await register_and_login(client, "dupe", "bob@dupe.example.com")
     bad = await client.post("/api/v1/auth/login", json={
