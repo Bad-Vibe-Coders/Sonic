@@ -67,9 +67,6 @@ export default function Login() {
           </div>
           {error && <p className="text-[13px] text-error flex items-center gap-1.5"><Icon name="AlertCircle" size={14} /> {error}</p>}
           <Button className="w-full" style={{ background: 'rgb(var(--primary))', color: 'rgb(var(--on-primary))' }} disabled={busy} onClick={submit}>{busy ? 'Signing in…' : `Sign in to ${t.name}`}</Button>
-          <button className="w-full h-10 rounded-md border border-hairline bg-surface text-ink text-[14px] font-semibold flex items-center justify-center gap-2 hover:bg-surface-soft" onClick={() => nav('/app/admin')}>
-            <Icon name="KeyRound" size={16} /> Continue with SSO
-          </button>
           <button
             type="button"
             className="w-full h-9 rounded-md text-[13px] text-muted font-medium flex items-center justify-center gap-1.5 hover:text-ink"
