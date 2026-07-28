@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { Button } from '../components/ui'
@@ -12,6 +12,8 @@ export default function Login() {
   const { tenant } = useTheme()
   const t = TENANTS[tenant]
   const nav = useNavigate()
+  // Where RequireAuth bounced us from, so a deep-link survives the login detour.
+  const from = useLocation().state?.from
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
@@ -23,7 +25,8 @@ export default function Login() {
     try {
       await login(email, password)
       const status = await getOnboardingStatus().catch(() => ({ completed_at: true }))
-      nav(status.completed_at ? '/app/admin' : '/onboarding')
+      if (!status.completed_at) nav('/onboarding')
+      else nav(from || '/app/admin')
     } catch (e) {
       setError(e.status === 401 ? 'Invalid email or password.' : `Sign-in failed: ${e.message}`)
     } finally {

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import ScrollToTop from './components/ScrollToTop'
 import Spotlight from './components/Spotlight'
+import RequireAuth from './components/RequireAuth'
 import AppShell from './layouts/AppShell'
 import AdminShell from './layouts/AdminShell'
 
@@ -41,30 +42,35 @@ export default function App() {
       <Route path="/enterprise" element={<Enterprise />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/onboarding" element={<Onboarding />} />
 
-      {/* tenant app */}
-      <Route path="/app" element={<AppShell />}>
-        <Route index element={<Navigate to="/app/admin" replace />} />
-        <Route path="admin" element={<AdminDashboard />} />
-        <Route path="supervisor" element={<SupervisorDashboard />} />
-        <Route path="agent" element={<AgentView />} />
-        <Route path="conversations" element={<ConversationList />} />
-        <Route path="conversations/:id" element={<ConversationReplay />} />
-        <Route path="analytics" element={<ExecAnalytics />} />
-        <Route path="health" element={<SystemHealth />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="notifications" element={<Notifications />} />
-        <Route path="billing" element={<Billing />} />
-        <Route path="states" element={<States />} />
-      </Route>
+      {/* everything below requires a token; unauthenticated hits redirect to /login */}
+      <Route element={<RequireAuth />}>
+        {/* post-signup flow — reads/writes onboarding progress for the logged-in tenant */}
+        <Route path="/onboarding" element={<Onboarding />} />
 
-      {/* platform super admin */}
-      <Route path="/platform" element={<AdminShell />}>
-        <Route index element={<PlatformOverview />} />
-        <Route path="tenants" element={<PlatformTenants />} />
-        <Route path="billing" element={<PlatformBilling />} />
-        <Route path="health" element={<PlatformHealth />} />
+        {/* tenant app */}
+        <Route path="/app" element={<AppShell />}>
+          <Route index element={<Navigate to="/app/admin" replace />} />
+          <Route path="admin" element={<AdminDashboard />} />
+          <Route path="supervisor" element={<SupervisorDashboard />} />
+          <Route path="agent" element={<AgentView />} />
+          <Route path="conversations" element={<ConversationList />} />
+          <Route path="conversations/:id" element={<ConversationReplay />} />
+          <Route path="analytics" element={<ExecAnalytics />} />
+          <Route path="health" element={<SystemHealth />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="billing" element={<Billing />} />
+          <Route path="states" element={<States />} />
+        </Route>
+
+        {/* platform super admin */}
+        <Route path="/platform" element={<AdminShell />}>
+          <Route index element={<PlatformOverview />} />
+          <Route path="tenants" element={<PlatformTenants />} />
+          <Route path="billing" element={<PlatformBilling />} />
+          <Route path="health" element={<PlatformHealth />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
