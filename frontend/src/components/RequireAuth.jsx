@@ -18,17 +18,17 @@ import { homeFor } from '../lib/roles'
 // Roles come from /auth/me (server-verified), never from the demo RoleSwitcher.
 export default function RequireAuth({ children, roles, platformAdmin = false }) {
   const location = useLocation()
-  const { role, platformAdmin: isPlatformAdmin, loading } = useAuth()
+  const { role, platformAdmin: isPlatformAdmin, loading, sessionExpired } = useAuth()
+  // Clearing dead tokens re-renders this guard, so its redirect often beats the
+  // one the expiry handler fires. Carry the reason either way (SON-60).
+  const loginState = {
+    from: `${location.pathname}${location.search}`,
+    ...(sessionExpired ? { expired: true } : {}),
+  }
 
   // No token at all — cheap check, no need to wait on the network.
   if (!isAuthed()) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: `${location.pathname}${location.search}` }}
-      />
-    )
+    return <Navigate to="/login" replace state={loginState} />
   }
 
   // Token present but identity not resolved yet. Render nothing rather than the
@@ -37,13 +37,7 @@ export default function RequireAuth({ children, roles, platformAdmin = false }) 
 
   // Token was rejected by /auth/me (expired, revoked, tampered with).
   if (!role) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: `${location.pathname}${location.search}` }}
-      />
-    )
+    return <Navigate to="/login" replace state={loginState} />
   }
 
   // Signed in, but not entitled: send them somewhere they are allowed to be

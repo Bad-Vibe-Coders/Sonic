@@ -97,6 +97,18 @@ describe('Login', () => {
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/onboarding'))
   })
 
+  it('explains the bounce when the session expired', () => {
+    renderWithProviders(<Login />, { route: '/login', state: { from: '/app/billing', expired: true } })
+
+    expect(screen.getByText('Your session expired. Please sign in again.')).toBeInTheDocument()
+  })
+
+  it('shows no expiry notice on a normal visit to /login', () => {
+    renderWithProviders(<Login />)
+
+    expect(screen.queryByText(/session expired/i)).not.toBeInTheDocument()
+  })
+
   it('shows an invalid-credentials message on a 401 response', async () => {
     const err = new Error('Unauthorized')
     err.status = 401
