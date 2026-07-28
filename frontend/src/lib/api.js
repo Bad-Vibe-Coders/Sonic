@@ -114,6 +114,19 @@ export const changePassword = (current_password, new_password) =>
 export const getTenantSettings = () => request('/settings/tenant')
 export const updateTenantSettings = (body) => request('/settings/tenant', { method: 'PUT', body })
 
+// ---- Team & roles ----
+export const listTeamMembers = () => request('/team/members')
+export const listInvitations = () => request('/team/invitations')
+export const inviteTeamMember = (email, role) => request('/team/invite', { method: 'POST', body: { email, role } })
+export const revokeInvitation = (id) => request(`/team/invitations/${id}`, { method: 'DELETE' })
+export const updateMemberRole = (id, role) => request(`/team/members/${id}/role`, { method: 'PUT', body: { role } })
+export const removeTeamMember = (id) => request(`/team/members/${id}`, { method: 'DELETE' })
+export async function acceptInvite(token, password, name) {
+  const tokens = await request('/team/accept-invite', { method: 'POST', body: { token, password, name } })
+  setTokens(tokens)
+  return tokens
+}
+
 // ---- Billing ----
 export const getBillingSummary = () => request('/billing/me')
 export const listBillingPlans = () => request('/billing/plans')
