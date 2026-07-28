@@ -147,3 +147,21 @@ dependency.
 ```bash
 pytest          # runs on SQLite + eager Celery — no Docker required
 ```
+
+## Production deployment
+
+Set `SONIC_ENV=prod`. When it's set, the app refuses to boot unless the
+following are also set to real values — the defaults below are checked
+into the repo and publicly known, so leaving them in place in prod would
+mean anyone can forge a valid session token:
+
+| Env var | Default (dev only) | Required in prod when... |
+|---|---|---|
+| `SONIC_SECRET_KEY` | `dev-secret-key` | always — signs every JWT |
+| `SONIC_S3_SECRET_KEY` | `sonic-secret` | `SONIC_STORAGE_BACKEND=s3` (the default) |
+
+Booting with `SONIC_ENV=prod` and either value still at its default raises
+`RuntimeError` at startup (see `app/core/config.py::_check_prod_secrets`)
+rather than silently signing tokens with a key anyone can read on GitHub.
+
+Generate a real secret with e.g. `openssl rand -hex 32`.

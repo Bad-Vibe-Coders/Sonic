@@ -63,6 +63,32 @@ class Settings(BaseSettings):
         )
 
 
+_DEFAULT_SECRET_KEY = "dev-secret-key"
+_DEFAULT_S3_SECRET_KEY = "sonic-secret"
+
+
+def _check_prod_secrets(settings: Settings) -> None:
+    """Refuse to boot in prod with placeholder secrets checked into the repo.
+
+    A prod deploy that forgets to set SONIC_SECRET_KEY would otherwise sign
+    every JWT with a publicly-known key.
+    """
+    if settings.env != "prod":
+        return
+    if settings.secret_key == _DEFAULT_SECRET_KEY:
+        raise RuntimeError(
+            "SONIC_SECRET_KEY is still set to the default dev value. "
+            "Set a real secret before running with SONIC_ENV=prod."
+        )
+    if settings.storage_backend == "s3" and settings.s3_secret_key == _DEFAULT_S3_SECRET_KEY:
+        raise RuntimeError(
+            "SONIC_S3_SECRET_KEY is still set to the default dev value. "
+            "Set a real secret before running with SONIC_ENV=prod."
+        )
+
+
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    _check_prod_secrets(settings)
+    return settings
