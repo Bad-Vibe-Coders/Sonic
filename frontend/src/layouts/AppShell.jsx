@@ -2,10 +2,9 @@ import { useState } from 'react'
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { ADMIN_ONLY, MANAGEMENT } from '../lib/roles'
-import { ThemeToggle, TenantBadge } from './Controls'
+import { ThemeToggle, TenantBadge, UserMenu } from './Controls'
 import Icon from '../components/Icon'
 import Logo from '../components/Logo'
-import { Avatar } from '../components/ui'
 
 // `roles: undefined` means every signed-in role. These lists mirror the route
 // guards in App.jsx — the nav is a view of what you may open, not the gate.
@@ -73,7 +72,7 @@ export default function AppShell() {
             <Icon name="Bell" size={17} />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error animate-pulseGlow" />
           </button>
-          <Avatar name="You Operator" size={34} />
+          <UserMenu />
         </header>
         <main className="flex-1 p-4 lg:p-8 max-w-content w-full mx-auto">
           <Outlet />
