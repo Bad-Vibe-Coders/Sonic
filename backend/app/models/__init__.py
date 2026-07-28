@@ -256,3 +256,34 @@ class Invoice(Base):
     period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class RefreshToken(Base):
+    """Server-side record of an issued refresh token, so it can be revoked.
+
+    A JWT is otherwise valid until it expires — 14 days here — which made an
+    exfiltrated refresh token unrevokable (SON-61). Each issued token gets a
+    `jti` recorded here, plus a `family_id` shared by every token in one
+    device's rotation chain.
+
+    Rotation with reuse detection: refreshing marks the presented token `used`
+    and issues its successor in the same family. A token that is presented
+    twice means two parties hold it, so the whole family is revoked and both
+    are forced to sign in again.
+
+    Deliberately not tenant-RLS scoped: /auth/refresh runs before any tenant
+    context exists, and rows are keyed by user.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    # The token's `jti` claim.
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    # Shared by every token descended from one sign-in.
+    family_id: Mapped[str] = mapped_column(String(36), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    # Set when this token is exchanged for its successor.
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
