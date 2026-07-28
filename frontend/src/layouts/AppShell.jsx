@@ -1,29 +1,32 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom'
-import { useTheme } from '../theme/ThemeContext'
-import { ThemeToggle, TenantSwitcher, RoleSwitcher } from './Controls'
+import { useAuth } from '../lib/AuthContext'
+import { ADMIN_ONLY, MANAGEMENT } from '../lib/roles'
+import { ThemeToggle, TenantSwitcher } from './Controls'
 import Icon from '../components/Icon'
 import Logo from '../components/Logo'
 import { Avatar } from '../components/ui'
 
+// `roles: undefined` means every signed-in role. These lists mirror the route
+// guards in App.jsx — the nav is a view of what you may open, not the gate.
 const ALL_NAV = [
-  { to: '/app/admin', label: 'Admin', icon: 'LayoutDashboard', roles: ['admin'] },
-  { to: '/app/supervisor', label: 'Supervisor', icon: 'Gauge', roles: ['supervisor'] },
-  { to: '/app/agent', label: 'My Calls', icon: 'Headphones', roles: ['agent'] },
-  { to: '/app/conversations', label: 'Conversations', icon: 'MessagesSquare', roles: ['admin', 'supervisor', 'analyst', 'agent', 'exec'] },
-  { to: '/app/analytics', label: 'Analytics', icon: 'BarChart3', roles: ['admin', 'supervisor', 'exec'] },
-  { to: '/app/health', label: 'System Health', icon: 'Activity', roles: ['admin'] },
-  { to: '/app/notifications', label: 'Alerts', icon: 'Bell', roles: ['admin', 'supervisor', 'analyst', 'agent', 'exec'] },
-  { to: '/app/billing', label: 'Billing', icon: 'CreditCard', roles: ['admin'] },
-  { to: '/app/settings', label: 'Settings', icon: 'Settings', roles: ['admin'] },
-  { to: '/app/states', label: 'UI States', icon: 'Layers', roles: ['admin'] },
+  { to: '/app/admin', label: 'Admin', icon: 'LayoutDashboard', roles: ADMIN_ONLY },
+  { to: '/app/supervisor', label: 'Supervisor', icon: 'Gauge', roles: MANAGEMENT },
+  { to: '/app/agent', label: 'My Calls', icon: 'Headphones' },
+  { to: '/app/conversations', label: 'Conversations', icon: 'MessagesSquare' },
+  { to: '/app/analytics', label: 'Analytics', icon: 'BarChart3', roles: MANAGEMENT },
+  { to: '/app/health', label: 'System Health', icon: 'Activity', roles: ADMIN_ONLY },
+  { to: '/app/notifications', label: 'Alerts', icon: 'Bell' },
+  { to: '/app/billing', label: 'Billing', icon: 'CreditCard', roles: MANAGEMENT },
+  { to: '/app/settings', label: 'Settings', icon: 'Settings', roles: ADMIN_ONLY },
+  { to: '/app/states', label: 'UI States', icon: 'Layers', roles: ADMIN_ONLY },
 ]
 
 export default function AppShell() {
-  const { role } = useTheme()
+  const { role, platformAdmin } = useAuth()
   const [open, setOpen] = useState(false)
   const nav = useNavigate()
-  const items = ALL_NAV.filter(n => n.roles.includes(role))
+  const items = ALL_NAV.filter(n => !n.roles || n.roles.includes(role))
 
   return (
     <div className="min-h-screen flex bg-canvas">
@@ -42,11 +45,13 @@ export default function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-3 border-t border-hairline">
-          <Link to="/platform" className="flex items-center gap-3 px-3 h-10 rounded-md text-[13px] text-muted hover:bg-surface-soft transition">
-            <Icon name="ShieldHalf" size={17} /> Platform Admin
-          </Link>
-        </div>
+        {platformAdmin && (
+          <div className="p-3 border-t border-hairline">
+            <Link to="/platform" className="flex items-center gap-3 px-3 h-10 rounded-md text-[13px] text-muted hover:bg-surface-soft transition">
+              <Icon name="ShieldHalf" size={17} /> Platform Admin
+            </Link>
+          </div>
+        )}
       </aside>
 
       {/* Main */}
@@ -61,7 +66,6 @@ export default function AppShell() {
           </div>
           <div className="flex-1" />
           <TenantSwitcher />
-          <RoleSwitcher />
           <ThemeToggle />
           <button onClick={() => nav('/app/notifications')} className="relative w-9 h-9 inline-flex items-center justify-center rounded-md border border-hairline bg-surface hover:bg-surface-soft">
             <Icon name="Bell" size={17} />
