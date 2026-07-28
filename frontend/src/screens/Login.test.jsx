@@ -3,13 +3,15 @@ import userEvent from '@testing-library/user-event'
 import { screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from '../test/utils'
 import Login from './Login'
-import { login, getOnboardingStatus } from '../lib/api'
+import { login, getOnboardingStatus, me } from '../lib/api'
 
 vi.mock('../lib/api', () => ({
   login: vi.fn(),
   // Login awaits this after a successful sign-in to decide onboarding vs app
   // (SON-26). Without it the call throws and the navigate never happens.
   getOnboardingStatus: vi.fn(),
+  // Login reads the real role after sign-in to pick a landing page (SON-54).
+  me: vi.fn(),
 }))
 
 const mockNavigate = vi.fn()
@@ -25,6 +27,8 @@ describe('Login', () => {
     // Default: onboarding already finished, so login goes straight to the app.
     getOnboardingStatus.mockReset()
     getOnboardingStatus.mockResolvedValue({ completed_at: '2026-01-01T00:00:00Z' })
+    me.mockReset()
+    me.mockResolvedValue({ id: 'u1', role: 'admin', platform_admin: false })
   })
 
   it('calls login with the entered credentials and navigates on success', async () => {
@@ -38,6 +42,32 @@ describe('Login', () => {
 
     await waitFor(() => expect(login).toHaveBeenCalledWith('demo@sonic.dev', 'demo1234'))
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/app/admin'))
+  })
+
+  it.each([
+    ['admin', '/app/admin'],
+    ['manager', '/app/supervisor'],
+    ['agent', '/app/agent'],
+  ])('lands a %s on %s instead of always /app/admin', async (role, home) => {
+    login.mockResolvedValueOnce({ access_token: 'tok' })
+    me.mockResolvedValueOnce({ id: 'u1', role, platform_admin: false })
+    const user = userEvent.setup()
+    renderWithProviders(<Login />)
+
+    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(home))
+  })
+
+  it('falls back to the most restricted home when the role lookup fails', async () => {
+    login.mockResolvedValueOnce({ access_token: 'tok' })
+    me.mockRejectedValueOnce(new Error('network'))
+    const user = userEvent.setup()
+    renderWithProviders(<Login />)
+
+    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/app/agent'))
   })
 
   it('returns to the route RequireAuth bounced from, when there is one', async () => {
