@@ -71,7 +71,7 @@ export default function Login() {
             </div>
           </div>
           <div>
-            <div className="flex justify-between mb-1.5"><label className="text-[13px] font-medium text-ink">Password</label><a className="text-[12px] text-muted hover:text-ink">Forgot?</a></div>
+            <div className="flex justify-between mb-1.5"><label className="text-[13px] font-medium text-ink">Password</label><Link to="/forgot-password" className="text-[12px] text-muted hover:text-ink">Forgot?</Link></div>
             <div className="flex items-center h-11 rounded-md border border-hairline bg-surface focus-within:border-ink px-3 gap-2">
               <Icon name="Lock" size={16} className="text-muted" />
               <input value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} type="password" placeholder="••••••••" className="flex-1 bg-transparent outline-none text-ink text-[15px]" />

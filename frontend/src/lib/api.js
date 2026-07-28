@@ -81,6 +81,10 @@ export async function register({ tenant_name, subdomain, email, password }) {
 export const me = () => request('/auth/me')
 export const logout = clearTokens
 
+export const forgotPassword = (email) => request('/auth/forgot-password', { method: 'POST', body: { email } })
+export const resetPassword = (token, new_password) =>
+  request('/auth/reset-password', { method: 'POST', body: { token, new_password } })
+
 // ---- Conversations ----
 export const listConversations = ({ limit = 50, offset = 0 } = {}) =>
   request(`/conversations?limit=${limit}&offset=${offset}`)
