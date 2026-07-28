@@ -154,20 +154,23 @@ export const me = () => request('/auth/me')
 // cleared localStorage, which left an exfiltrated token valid for its full
 // 14-day life.
 //
-// The local tokens are dropped whatever the server says: the user asked to be
-// signed out, and a failed call must not leave them apparently signed in.
+// The local tokens go first, before the network call. SON-56's menu calls this
+// without awaiting and navigates straight away, so clearing afterwards would
+// leave live tokens in localStorage while the user is already on /login. It
+// also means a failed or slow call can never leave them apparently signed in.
 export async function logout() {
   const refresh_token = localStorage.getItem(REFRESH_KEY)
+  clearTokens()
   try {
     if (refresh_token) await request('/auth/logout', { method: 'POST', body: { refresh_token } })
-  } catch { /* best effort — the local session ends regardless */ }
-  clearTokens()
+  } catch { /* best effort — the local session has already ended */ }
 }
 
 // "Sign out everywhere" — revokes every refresh token this user holds, which is
 // the recovery path for a token you believe was stolen.
 export async function logoutAll() {
   try {
+    // Needs the access token, so this one revokes before clearing.
     await request('/auth/logout-all', { method: 'POST' })
   } catch { /* best effort — the local session ends regardless */ }
   clearTokens()

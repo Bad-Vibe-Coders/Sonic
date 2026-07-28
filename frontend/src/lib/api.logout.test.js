@@ -15,7 +15,7 @@ describe('logout (SON-61)', () => {
   })
   afterEach(() => vi.restoreAllMocks())
 
-  it('revokes the session server-side, then clears local tokens', async () => {
+  it('revokes the session server-side and clears local tokens', async () => {
     setTokens({ access_token: 'a', refresh_token: 'r' })
     fetch.mockResolvedValueOnce(ok())
 
@@ -27,6 +27,21 @@ describe('logout (SON-61)', () => {
     expect(bodyOf(fetch.mock.calls[0])).toEqual({ refresh_token: 'r' })
     expect(getToken()).toBeNull()
     expect(localStorage.getItem(REFRESH_KEY)).toBeNull()
+  })
+
+  it('ends the local session before the network call returns', async () => {
+    // SON-56's menu calls logout() without awaiting and navigates immediately,
+    // so the tokens must be gone by then, not after the response.
+    setTokens({ access_token: 'a', refresh_token: 'r' })
+    let resolveCall
+    fetch.mockReturnValueOnce(new Promise(res => { resolveCall = () => res(ok()) }))
+
+    const pending = logout()
+    expect(getToken()).toBeNull()
+    expect(localStorage.getItem(REFRESH_KEY)).toBeNull()
+
+    resolveCall()
+    await pending
   })
 
   it('still signs the user out locally when the server call fails', async () => {
