@@ -57,7 +57,6 @@ describe('App route guarding — role enforcement', () => {
     ['/app/settings', 'agent', 'Configure'],
     ['/app/settings', 'manager', 'Configure'],
     ['/app/billing', 'agent', 'Manage your subscription and usage.'],
-    ['/app/billing', 'manager', 'Manage your subscription and usage.'],
     ['/app/health', 'agent', 'Live status of every AI pipeline stage.'],
     ['/app/health', 'manager', 'Live status of every AI pipeline stage.'],
     ['/app/admin', 'agent', 'Good morning, Operator'],
@@ -83,6 +82,16 @@ describe('App route guarding — role enforcement', () => {
     expect(screen.getByRole('link', { name: /System Health/i })).toBeInTheDocument()
     // Not diverted to anyone else's home, and not sent to login.
     expect(screen.queryByText('Your calls and quality score.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Team overview')).not.toBeInTheDocument()
+    expect(onLoginScreen()).toBe(false)
+  })
+
+  it('lets a manager into billing, matching SON-52 backend RBAC', async () => {
+    signedInAs('manager')
+    renderWithProviders(<App />, { route: '/app/billing' })
+
+    // Not diverted to the manager home — the route is permitted for them.
+    await waitFor(() => expect(me).toHaveBeenCalled())
     expect(screen.queryByText('Team overview')).not.toBeInTheDocument()
     expect(onLoginScreen()).toBe(false)
   })

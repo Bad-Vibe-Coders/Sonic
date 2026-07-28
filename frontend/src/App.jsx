@@ -67,16 +67,19 @@ export default function App() {
           <Route path="notifications" element={<Notifications />} />
           <Route path="agent" element={<AgentView />} />
 
+          {/* admin + manager, mirroring SON-52's require_role on the analytics
+              and billing GET routes. Billing's plan switcher is admin-only
+              server-side, so the screen hides it for managers. */}
           <Route element={<RequireAuth roles={MANAGEMENT} />}>
             <Route path="supervisor" element={<SupervisorDashboard />} />
             <Route path="analytics" element={<ExecAnalytics />} />
+            <Route path="billing" element={<Billing />} />
           </Route>
 
           <Route element={<RequireAuth roles={ADMIN_ONLY} />}>
             <Route path="admin" element={<AdminDashboard />} />
             <Route path="health" element={<SystemHealth />} />
             <Route path="settings" element={<Settings />} />
-            <Route path="billing" element={<Billing />} />
             <Route path="states" element={<States />} />
           </Route>
         </Route>

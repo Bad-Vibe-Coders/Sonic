@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Card, Button, SectionTitle, Reveal, StatusChip } from '../components/ui'
 import Icon from '../components/Icon'
 import { getBillingSummary, listBillingPlans, listInvoices, changePlan } from '../lib/api'
+import { useAuth } from '../lib/AuthContext'
+import { ROLE_ADMIN } from '../lib/roles'
 
 function fmtMoney(cents) {
   if (cents == null) return 'Custom'
@@ -13,6 +15,7 @@ function fmtDate(iso) {
 }
 
 export default function Billing() {
+  const { role } = useAuth()
   const [summary, setSummary] = useState(null)
   const [plans, setPlans] = useState(null)
   const [invoices, setInvoices] = useState(null)
@@ -124,6 +127,9 @@ export default function Billing() {
         </Card></Reveal>
       )}
 
+      {/* Managers may read billing (SON-52) but only admins may change the plan,
+          so don't show them a switcher the API would reject. */}
+      {role === ROLE_ADMIN && (
       <Reveal>
         <SectionTitle title="Change plan" />
         {switchError && <p className="text-[13px] text-error flex items-center gap-1.5 mb-4"><Icon name="AlertCircle" size={14} /> {switchError}</p>}
@@ -145,6 +151,7 @@ export default function Billing() {
           })}
         </div>
       </Reveal>
+      )}
     </div>
   )
 }

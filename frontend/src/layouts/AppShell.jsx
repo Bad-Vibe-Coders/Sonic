@@ -17,7 +17,7 @@ const ALL_NAV = [
   { to: '/app/analytics', label: 'Analytics', icon: 'BarChart3', roles: MANAGEMENT },
   { to: '/app/health', label: 'System Health', icon: 'Activity', roles: ADMIN_ONLY },
   { to: '/app/notifications', label: 'Alerts', icon: 'Bell' },
-  { to: '/app/billing', label: 'Billing', icon: 'CreditCard', roles: ADMIN_ONLY },
+  { to: '/app/billing', label: 'Billing', icon: 'CreditCard', roles: MANAGEMENT },
   { to: '/app/settings', label: 'Settings', icon: 'Settings', roles: ADMIN_ONLY },
   { to: '/app/states', label: 'UI States', icon: 'Layers', roles: ADMIN_ONLY },
 ]
