@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_tenant_db
-from app.models import Conversation, ConversationStatus, TenantMetrics, User
+from app.api.deps import get_tenant_db, require_role
+from app.models import Conversation, ConversationStatus, Role, TenantMetrics, User
 from app.schemas import AgentStat, AnalyticsOverview, ComplianceCategory, RiskItem, VolumePoint
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 @router.get("/overview", response_model=AnalyticsOverview)
 async def overview(
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Depends(require_role(Role.admin, Role.manager))],
     db: Annotated[AsyncSession, Depends(get_tenant_db)],
 ):
     metrics = await db.scalar(
@@ -28,7 +28,7 @@ async def overview(
 
 @router.get("/volume", response_model=list[VolumePoint])
 async def volume(
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Depends(require_role(Role.admin, Role.manager))],
     db: Annotated[AsyncSession, Depends(get_tenant_db)],
     days: int = 14,
 ):
@@ -53,7 +53,7 @@ async def volume(
 
 @router.get("/compliance", response_model=list[ComplianceCategory])
 async def compliance(
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Depends(require_role(Role.admin, Role.manager))],
     db: Annotated[AsyncSession, Depends(get_tenant_db)],
 ):
     """Pass rate per QA rule, derived from qa_result.findings across all scored conversations."""
@@ -93,7 +93,7 @@ RISK_KEYWORDS = [
 
 @router.get("/risks", response_model=list[RiskItem])
 async def risks(
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Depends(require_role(Role.admin, Role.manager))],
     db: Annotated[AsyncSession, Depends(get_tenant_db)],
 ):
     """Top risk categories, derived from transcript keyword matches and prediction scores."""
@@ -131,7 +131,7 @@ async def risks(
 
 @router.get("/agents", response_model=list[AgentStat])
 async def agent_leaderboard(
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Depends(require_role(Role.admin, Role.manager))],
     db: Annotated[AsyncSession, Depends(get_tenant_db)],
 ):
     """Per-agent call stats. The uploading user is treated as the handling agent."""

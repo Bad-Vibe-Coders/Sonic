@@ -51,7 +51,7 @@ async def list_plans(
 
 @router.get("/me", response_model=BillingSummaryOut)
 async def get_billing_summary(
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Depends(require_role(Role.admin, Role.manager))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     sub = await _get_or_create_subscription(user.tenant_id, db)
@@ -74,7 +74,7 @@ async def get_billing_summary(
 
 @router.get("/invoices", response_model=list[InvoiceOut])
 async def list_invoices(
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Depends(require_role(Role.admin, Role.manager))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     invoices = await db.scalars(
