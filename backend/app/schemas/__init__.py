@@ -40,13 +40,27 @@ class UserOut(BaseModel):
     tenant_id: str
     email: str
     role: str
-    # Cross-tenant platform access. Exposed so the frontend can gate the
-    # /platform routes on the same flag require_platform_admin enforces
-    # (it is not a JWT claim, so /auth/me is the only place clients see it).
-    platform_admin: bool = False
     name: str | None = None
     notify_email: bool = True
     notify_in_app: bool = True
+
+
+class PlatformLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class PlatformTokenResponse(BaseModel):
+    # Access-token only, deliberately -- see platform_auth.py.
+    access_token: str
+    token_type: str = "bearer"
+
+
+class PlatformAdminOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    email: str
+    name: str | None = None
 
 
 class SegmentOut(BaseModel):

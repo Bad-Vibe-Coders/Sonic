@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from './test/utils'
 import App from './App'
 import { isAuthed, me, getTenantSettings } from './lib/api'
+import { isPlatformAuthed, platformMe } from './lib/platformApi'
 
 // Keep every real export (App pulls in screens that import many of them) and
 // stub only the two the guard path depends on.
@@ -13,22 +14,38 @@ vi.mock('./lib/api', async (importOriginal) => ({
   getTenantSettings: vi.fn(),
 }))
 
+// Platform auth is a fully separate module (SON-64) — stubbed independently
+// so tenant and platform identity can never accidentally leak into each other
+// inside a test the way they would if this shared the mock above.
+vi.mock('./lib/platformApi', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isPlatformAuthed: vi.fn(),
+  platformMe: vi.fn(),
+}))
+
 // Routes a browser could previously reach just by typing the URL.
 const PROTECTED_ROUTES = [
   '/app', '/app/admin', '/app/supervisor', '/app/agent', '/app/conversations',
   '/app/conversations/CV-1', '/app/analytics', '/app/health', '/app/settings',
   '/app/notifications', '/app/billing', '/app/states',
-  '/platform', '/platform/tenants', '/platform/billing', '/platform/health',
   '/onboarding',
 ]
 
-const signedInAs = (role, platform_admin = false) => {
+const PLATFORM_ROUTES = ['/platform', '/platform/tenants', '/platform/billing', '/platform/health']
+
+const signedInAs = (role) => {
   isAuthed.mockReturnValue(true)
-  me.mockResolvedValue({ id: 'u1', tenant_id: 't1', email: 'u@e.com', role, platform_admin })
+  me.mockResolvedValue({ id: 'u1', tenant_id: 't1', email: 'u@e.com', role })
   getTenantSettings.mockResolvedValue({ id: 't1', name: 'Helix Health', timezone: 'UTC' })
 }
 
+const signedInAsPlatformAdmin = () => {
+  isPlatformAuthed.mockReturnValue(true)
+  platformMe.mockResolvedValue({ id: 'p1', email: 'ops@sonic.dev', name: 'Platform Ops' })
+}
+
 const onLoginScreen = () => screen.queryByText('Preview branding:') !== null
+const onPlatformLoginScreen = () => screen.queryByText('Platform admin sign-in') !== null
 
 describe('App route guarding — unauthenticated', () => {
   beforeEach(() => {
@@ -45,6 +62,22 @@ describe('App route guarding — unauthenticated', () => {
     // Login is identifiable by its tenant-simulation control.
     expect(screen.getByText('Preview branding:')).toBeInTheDocument()
     expect(me).not.toHaveBeenCalled()
+  })
+})
+
+describe('App route guarding — platform, unauthenticated', () => {
+  beforeEach(() => {
+    isPlatformAuthed.mockReset()
+    platformMe.mockReset()
+  })
+
+  it.each(PLATFORM_ROUTES)('redirects %s to /platform/login, never /login', (route) => {
+    isPlatformAuthed.mockReturnValue(false)
+    renderWithProviders(<App />, { route })
+
+    expect(screen.getByText('Platform admin sign-in')).toBeInTheDocument()
+    expect(onLoginScreen()).toBe(false)
+    expect(platformMe).not.toHaveBeenCalled()
   })
 })
 
@@ -112,28 +145,43 @@ describe('App route guarding — role enforcement', () => {
     expect(screen.queryByRole('link', { name: /Platform Admin/i })).not.toBeInTheDocument()
   })
 
-  it.each(['agent', 'manager'])('blocks %s from the platform area', async (role) => {
+  it.each(['agent', 'manager', 'admin'])('a tenant %s (no platform session) is sent to /platform/login, not the dashboard', async (role) => {
     signedInAs(role)
+    isPlatformAuthed.mockReturnValue(false)
     renderWithProviders(<App />, { route: '/platform/tenants' })
 
     await waitFor(() => expect(me).toHaveBeenCalled())
-    // The tenant table heading only renders on the real platform screen.
+    // Being a signed-in tenant admin grants nothing here — there is no
+    // platform_admin flag left to spoof or accidentally satisfy (SON-64).
     expect(screen.queryByText('Subdomain, seats, and conversation volume')).not.toBeInTheDocument()
+    expect(screen.getByText('Platform admin sign-in')).toBeInTheDocument()
   })
+})
 
-  it('blocks a tenant admin who is not a platform admin from /platform', async () => {
-    signedInAs('admin', false)
-    renderWithProviders(<App />, { route: '/platform/tenants' })
-
-    await waitFor(() => expect(me).toHaveBeenCalled())
-    expect(screen.queryByText('Subdomain, seats, and conversation volume')).not.toBeInTheDocument()
+describe('App route guarding — platform, authenticated', () => {
+  beforeEach(() => {
+    isPlatformAuthed.mockReset()
+    platformMe.mockReset()
+    isAuthed.mockReset()
+    me.mockReset()
   })
 
   it('lets a platform admin into /platform', async () => {
-    signedInAs('admin', true)
+    signedInAsPlatformAdmin()
     renderWithProviders(<App />, { route: '/platform/tenants' })
 
     expect(await screen.findByText('Subdomain, seats, and conversation volume')).toBeInTheDocument()
+  })
+
+  it("a platform session alone never resolves into the tenant app", async () => {
+    signedInAsPlatformAdmin()
+    isAuthed.mockReturnValue(false)
+    renderWithProviders(<App />, { route: '/app/admin' })
+
+    // No tenant token at all, so the tenant guard still sends this to /login —
+    // a platform session carries no tenant identity to resolve into.
+    expect(await screen.findByText('Preview branding:')).toBeInTheDocument()
+    expect(me).not.toHaveBeenCalled()
   })
 })
 

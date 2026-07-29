@@ -1,10 +1,16 @@
-import { NavLink, Outlet, Link } from 'react-router-dom'
+import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom'
 import { ThemeToggle } from './Controls'
 import Icon from '../components/Icon'
 import { Avatar } from '../components/ui'
+import { platformLogout } from '../lib/platformApi'
+import { usePlatformAuth } from '../lib/PlatformAuthContext'
 
 // Platform Super Admin = the SaaS vendor control plane. Deliberately different
 // chrome: dark slate top rail + amber accent, so it never reads as a tenant view.
+//
+// No link back into /app anywhere in this shell (SON-64) — a platform admin
+// account has no tenant to switch to; the old "Tenant app" link was a stray
+// bridge between the two auth domains this ticket exists to remove.
 const NAV = [
   { to: '/platform', label: 'Overview', icon: 'Globe', end: true },
   { to: '/platform/tenants', label: 'Tenants', icon: 'Building2' },
@@ -13,6 +19,14 @@ const NAV = [
 ]
 
 export default function AdminShell() {
+  const { admin } = usePlatformAuth()
+  const nav = useNavigate()
+
+  function handleLogout() {
+    platformLogout()
+    nav('/platform/login')
+  }
+
   return (
     <div className="min-h-screen bg-canvas">
       <div className="bg-[#0b1220] text-white">
@@ -31,11 +45,12 @@ export default function AdminShell() {
             ))}
           </nav>
           <div className="flex-1" />
-          <Link to="/app/admin" className="text-[13px] text-white/60 hover:text-white flex items-center gap-1.5">
-            <Icon name="ArrowLeftRight" size={15} /> Tenant app
-          </Link>
           <ThemeToggle />
-          <Avatar name="Platform Ops" size={32} />
+          <button onClick={handleLogout} title="Sign out"
+            className="text-[13px] text-white/60 hover:text-white flex items-center gap-1.5">
+            <Icon name="LogOut" size={15} /> Sign out
+          </button>
+          <Avatar name={admin?.name || admin?.email || 'Platform'} size={32} />
         </div>
       </div>
       <main className="max-w-content mx-auto px-6 py-8">

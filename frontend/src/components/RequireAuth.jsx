@@ -13,12 +13,12 @@ import { homeFor } from '../lib/roles'
 //
 //   <RequireAuth>                              signed in
 //   <RequireAuth roles={['admin']}>            signed in AND role matches
-//   <RequireAuth platformAdmin>                signed in AND platform_admin
 //
 // Roles come from /auth/me (server-verified), never from the demo RoleSwitcher.
-export default function RequireAuth({ children, roles, platformAdmin = false }) {
+// Platform admin has its own separate guard — see RequirePlatformAuth.jsx.
+export default function RequireAuth({ children, roles }) {
   const location = useLocation()
-  const { role, platformAdmin: isPlatformAdmin, loading, sessionExpired } = useAuth()
+  const { role, loading, sessionExpired } = useAuth()
   // Clearing dead tokens re-renders this guard, so its redirect often beats the
   // one the expiry handler fires. Carry the reason either way (SON-60).
   const loginState = {
@@ -43,8 +43,7 @@ export default function RequireAuth({ children, roles, platformAdmin = false }) 
   // Signed in, but not entitled: send them somewhere they are allowed to be
   // rather than to /login, which would look like a session problem.
   const roleAllowed = !roles || roles.includes(role)
-  const platformAllowed = !platformAdmin || isPlatformAdmin
-  if (!roleAllowed || !platformAllowed) {
+  if (!roleAllowed) {
     const home = homeFor(role)
     // Never redirect to the route we are already on — an unrecognised role
     // (e.g. one added to the backend later) would otherwise ping-pong forever.

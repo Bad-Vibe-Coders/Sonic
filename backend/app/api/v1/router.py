@@ -10,6 +10,7 @@ from app.api.v1 import (
     notifications,
     onboarding,
     platform,
+    platform_auth,
     search,
     settings,
     team,
@@ -23,6 +24,7 @@ api_router.include_router(search.router)
 api_router.include_router(health.router)
 api_router.include_router(notifications.router)
 api_router.include_router(platform.router)
+api_router.include_router(platform_auth.router)
 api_router.include_router(settings.router)
 api_router.include_router(billing.router)
 api_router.include_router(leads.router)

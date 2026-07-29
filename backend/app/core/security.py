@@ -53,12 +53,34 @@ def create_token(
         "tenant_id": tenant_id,
         "role": role,
         "type": token_type,
+        # Explicit tenant/platform boundary (SON-64): a platform admin token
+        # carries scope="platform" and no tenant_id/role that resolve to
+        # anything, so get_current_user rejects it outright rather than
+        # relying on the sub simply not matching a users.id row.
+        "scope": "tenant",
         "exp": datetime.now(UTC) + timedelta(minutes=minutes),
     }
     if jti is not None:
         payload["jti"] = jti
     if family_id is not None:
         payload["fid"] = family_id
+    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
+
+
+def create_platform_admin_token(admin_id: str) -> str:
+    """Mint a platform-admin access token.
+
+    Deliberately separate from `create_token`: no tenant_id, no Role, no
+    refresh companion. Platform sessions are access-only (re-login on
+    expiry) so this never touches the tenant-keyed refresh_tokens table.
+    """
+    settings = get_settings()
+    payload = {
+        "sub": admin_id,
+        "type": "access",
+        "scope": "platform",
+        "exp": datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes),
+    }
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 
