@@ -241,9 +241,10 @@ export const finishOnboarding = () => request('/onboarding/finish', { method: 'P
 export const submitLead = ({ name, email, company, message, source }) =>
   request('/leads', { method: 'POST', body: { name, email, company, message, source } })
 
-// ---- Platform (cross-tenant admin) ----
-export const platformTenants = () => request('/platform/tenants')
-export const platformOverview = () => request('/platform/overview')
+// Platform (cross-tenant control plane) calls live in platformApi.js, on
+// their own token and fetch path entirely -- see SON-64. Nothing platform-
+// scoped should ever go through this tenant client.
+
 export const search = (q) => request(`/search?q=${encodeURIComponent(q)}`)
 export const health = () => request('/health')
 export const pipelineHealth = () => request('/health/pipeline')

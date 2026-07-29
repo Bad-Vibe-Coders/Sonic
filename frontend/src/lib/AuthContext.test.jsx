@@ -14,12 +14,11 @@ vi.mock('./api', () => ({
 }))
 
 function Probe() {
-  const { role, platformAdmin, loading, tenantName } = useAuth()
+  const { role, loading, tenantName } = useAuth()
   return (
     <div>
       <span data-testid="loading">{String(loading)}</span>
       <span data-testid="role">{String(role)}</span>
-      <span data-testid="platformAdmin">{String(platformAdmin)}</span>
       <span data-testid="tenantName">{String(tenantName)}</span>
     </div>
   )
@@ -48,26 +47,16 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('role')).toHaveTextContent('null')
   })
 
-  it('exposes the server-verified role and platform_admin flag', async () => {
+  it('exposes the server-verified role', async () => {
     isAuthed.mockReturnValue(true)
-    me.mockResolvedValueOnce({ id: 'u1', role: 'manager', platform_admin: true })
+    me.mockResolvedValueOnce({ id: 'u1', role: 'manager' })
     renderProvider()
 
     // Starts in a loading state so guards do not decide too early.
     expect(screen.getByTestId('loading')).toHaveTextContent('true')
 
     await waitFor(() => expect(screen.getByTestId('role')).toHaveTextContent('manager'))
-    expect(screen.getByTestId('platformAdmin')).toHaveTextContent('true')
     expect(screen.getByTestId('loading')).toHaveTextContent('false')
-  })
-
-  it('defaults platform_admin to false when the field is absent', async () => {
-    isAuthed.mockReturnValue(true)
-    me.mockResolvedValueOnce({ id: 'u1', role: 'admin' })
-    renderProvider()
-
-    await waitFor(() => expect(screen.getByTestId('role')).toHaveTextContent('admin'))
-    expect(screen.getByTestId('platformAdmin')).toHaveTextContent('false')
   })
 
   it('clears a rejected token so the app cannot sit half-authenticated', async () => {

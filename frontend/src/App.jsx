@@ -1,8 +1,10 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import ScrollToTop from './components/ScrollToTop'
 import Spotlight from './components/Spotlight'
 import RequireAuth from './components/RequireAuth'
+import RequirePlatformAuth from './components/RequirePlatformAuth'
 import { AuthProvider, useAuth } from './lib/AuthContext'
+import { PlatformAuthProvider } from './lib/PlatformAuthContext'
 import { MANAGEMENT, ADMIN_ONLY, homeFor } from './lib/roles'
 import AppShell from './layouts/AppShell'
 import AdminShell from './layouts/AdminShell'
@@ -18,6 +20,7 @@ import AcceptInvite from './screens/AcceptInvite'
 import ForgotPassword from './screens/ForgotPassword'
 import ResetPassword from './screens/ResetPassword'
 import Onboarding from './screens/Onboarding'
+import PlatformLogin from './screens/PlatformLogin'
 
 import AdminDashboard from './screens/AdminDashboard'
 import SupervisorDashboard from './screens/SupervisorDashboard'
@@ -89,10 +92,15 @@ export default function App() {
             <Route path="states" element={<States />} />
           </Route>
         </Route>
+      </Route>
 
-        {/* platform super admin — gated on the platform_admin flag from /auth/me,
-            the same flag the backend's require_platform_admin enforces. */}
-        <Route element={<RequireAuth platformAdmin />}>
+      {/* Platform control plane — fully separate auth domain (SON-64). Its own
+          provider/guard/token, no tenant AuthProvider or RequireAuth anywhere
+          in this branch, so a tenant session (at any role) grants nothing
+          here and a platform session grants nothing in /app. */}
+      <Route element={<PlatformAuthProvider><Outlet /></PlatformAuthProvider>}>
+        <Route path="/platform/login" element={<PlatformLogin />} />
+        <Route element={<RequirePlatformAuth />}>
           <Route path="/platform" element={<AdminShell />}>
             <Route index element={<PlatformOverview />} />
             <Route path="tenants" element={<PlatformTenants />} />

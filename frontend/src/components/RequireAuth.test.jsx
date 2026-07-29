@@ -17,14 +17,14 @@ vi.mock('../lib/AuthContext', () => ({
   useAuth: vi.fn(),
 }))
 
-function signedIn({ role = 'admin', platformAdmin = false } = {}) {
+function signedIn({ role = 'admin' } = {}) {
   isAuthed.mockReturnValue(true)
-  useAuth.mockReturnValue({ role, platformAdmin, loading: false, user: { role } })
+  useAuth.mockReturnValue({ role, loading: false, user: { role } })
 }
 
 function signedOut() {
   isAuthed.mockReturnValue(false)
-  useAuth.mockReturnValue({ role: null, platformAdmin: false, loading: false, user: null })
+  useAuth.mockReturnValue({ role: null, loading: false, user: null })
 }
 
 function LoginProbe({ onLocation }) {
@@ -43,7 +43,6 @@ function renderTree(route, { onLocation = () => {}, guard = <RequireAuth /> } = 
       <Route element={guard}>
         <Route path="/app/billing" element={<div>billing screen</div>} />
         <Route path="/app/conversations" element={<div>conversations screen</div>} />
-        <Route path="/platform" element={<div>platform screen</div>} />
       </Route>
     </Routes>,
     { route }
@@ -82,7 +81,7 @@ describe('RequireAuth — authentication', () => {
 
   it('renders nothing while identity is still resolving', () => {
     isAuthed.mockReturnValue(true)
-    useAuth.mockReturnValue({ role: null, platformAdmin: false, loading: true, user: null })
+    useAuth.mockReturnValue({ role: null, loading: true, user: null })
     renderTree('/app/billing')
 
     // Crucially not the protected screen, and not a premature redirect either.
@@ -92,7 +91,7 @@ describe('RequireAuth — authentication', () => {
 
   it('redirects to /login when a token exists but /auth/me rejected it', () => {
     isAuthed.mockReturnValue(true)
-    useAuth.mockReturnValue({ role: null, platformAdmin: false, loading: false, user: null })
+    useAuth.mockReturnValue({ role: null, loading: false, user: null })
     renderTree('/app/billing')
 
     expect(screen.getByText('login screen')).toBeInTheDocument()
@@ -160,35 +159,5 @@ describe('RequireAuth — role gating', () => {
 
     expect(screen.getByText(/don’t have access/i)).toBeInTheDocument()
     expect(screen.queryByText('agent screen')).not.toBeInTheDocument()
-  })
-})
-
-describe('RequireAuth — platform admin gating', () => {
-  beforeEach(() => {
-    isAuthed.mockReset()
-    useAuth.mockReset()
-  })
-
-  it('allows a platform admin', () => {
-    signedIn({ role: 'admin', platformAdmin: true })
-    renderTree('/platform', { guard: <RequireAuth platformAdmin /> })
-
-    expect(screen.getByText('platform screen')).toBeInTheDocument()
-  })
-
-  it('blocks a tenant admin who is not a platform admin', () => {
-    signedIn({ role: 'admin', platformAdmin: false })
-    renderTree('/platform', { guard: <RequireAuth platformAdmin /> })
-
-    expect(screen.queryByText('platform screen')).not.toBeInTheDocument()
-    expect(screen.getByText('admin home')).toBeInTheDocument()
-  })
-
-  it('blocks an agent from the platform area', () => {
-    signedIn({ role: 'agent', platformAdmin: false })
-    renderTree('/platform', { guard: <RequireAuth platformAdmin /> })
-
-    expect(screen.queryByText('platform screen')).not.toBeInTheDocument()
-    expect(screen.getByText('agent home')).toBeInTheDocument()
   })
 })

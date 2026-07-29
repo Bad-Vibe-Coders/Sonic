@@ -62,7 +62,6 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.agent)
-    platform_admin: Mapped[bool] = mapped_column(default=False)
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     notify_email: Mapped[bool] = mapped_column(default=True)
     notify_in_app: Mapped[bool] = mapped_column(default=True)
@@ -314,4 +313,23 @@ class RefreshToken(Base):
     # Set when this token is exchanged for its successor.
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PlatformAdmin(Base):
+    """The SaaS vendor's own operators -- structurally separate from `User`
+    (SON-64). Previously platform access was a boolean flag on a tenant user,
+    which meant a platform admin's login token also carried a tenant_id and
+    role and could open that tenant's dashboard. A row here has neither: it
+    cannot belong to a tenant, so there is nothing for a tenant-scoped screen
+    to resolve it into, and a tenant token can never satisfy this table's
+    lookup (different id space, different auth endpoint, different JWT scope
+    -- see get_current_platform_admin)."""
+
+    __tablename__ = "platform_admins"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

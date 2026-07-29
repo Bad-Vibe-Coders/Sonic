@@ -7,10 +7,14 @@ const AuthContext = createContext(null)
 // Loads the signed-in user's real identity once and shares it with the route
 // guards, the nav, and anything that names the current organization.
 //
-// Why /auth/me and not the JWT: `role` is in the token, but `platform_admin` is
-// not — and decoding an unverified token client-side to make access decisions is
-// a bad habit. /auth/me is verified server-side, so it is the single source of
-// truth for both.
+// Why /auth/me and not the JWT: `role` is in the token, but decoding an
+// unverified token client-side to make access decisions is a bad habit.
+// /auth/me is verified server-side, so it is the single source of truth.
+//
+// This context is tenant-only. Platform admin is a structurally separate
+// account type with its own login, token, and context (see
+// lib/PlatformAuthContext.jsx) — SON-64 deliberately keeps the two from
+// sharing any code path.
 //
 // The tenant comes from /settings/tenant for the same reason: the organization
 // you belong to is decided by your token's tenant_id, not by a client-side
@@ -76,7 +80,6 @@ export function AuthProvider({ children }) {
   const value = {
     user: user ?? null,
     role: user?.role ?? null,
-    platformAdmin: Boolean(user?.platform_admin),
     loading: user === undefined,
     sessionExpired,
     tenant,

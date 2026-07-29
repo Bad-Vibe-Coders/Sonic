@@ -81,6 +81,7 @@ docker compose build --build-arg INSTALL_ML_EXTRAS=true worker
 (Only worth doing for `worker` — the `api` service never runs pipeline stages, so
 installing ML extras there just bloats the image for no benefit.)
 - Demo login: `demo@sonic.dev` / `demo1234`
+- Demo platform admin (separate control plane, `/platform/login` in the frontend, `POST /api/v1/platform/auth/login`): `platform-admin@sonic.dev` / `platformadmin1234`
 
 ### Smoke test
 

@@ -24,7 +24,7 @@ const ALL_NAV = [
 ]
 
 export default function AppShell() {
-  const { role, platformAdmin } = useAuth()
+  const { role } = useAuth()
   const [open, setOpen] = useState(false)
   const nav = useNavigate()
   const items = ALL_NAV.filter(n => !n.roles || n.roles.includes(role))
@@ -46,13 +46,6 @@ export default function AppShell() {
             </NavLink>
           ))}
         </nav>
-        {platformAdmin && (
-          <div className="p-3 border-t border-hairline">
-            <Link to="/platform" className="flex items-center gap-3 px-3 h-10 rounded-md text-[13px] text-muted hover:bg-surface-soft transition">
-              <Icon name="ShieldHalf" size={17} /> Platform Admin
-            </Link>
-          </div>
-        )}
       </aside>
 
       {/* Main */}
