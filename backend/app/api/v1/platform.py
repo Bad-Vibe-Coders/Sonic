@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_platform_admin
+from app.api.deps import get_current_platform_admin
 from app.core.db import get_db
-from app.models import Conversation, Tenant, User
+from app.models import Conversation, PlatformAdmin, Tenant, User
 from app.schemas import PlatformOverview, TenantSummary
 
 router = APIRouter(prefix="/platform", tags=["platform"])
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/platform", tags=["platform"])
 
 @router.get("/tenants", response_model=list[TenantSummary])
 async def list_tenants(
-    _admin: Annotated[User, Depends(require_platform_admin)],
+    _admin: Annotated[PlatformAdmin, Depends(get_current_platform_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     tenants = (await db.scalars(select(Tenant).order_by(Tenant.created_at.desc()))).all()
@@ -38,7 +38,7 @@ async def list_tenants(
 
 @router.get("/overview", response_model=PlatformOverview)
 async def platform_overview(
-    _admin: Annotated[User, Depends(require_platform_admin)],
+    _admin: Annotated[PlatformAdmin, Depends(get_current_platform_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     tenant_count = await db.scalar(select(func.count(Tenant.id)))

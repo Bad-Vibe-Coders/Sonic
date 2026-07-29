@@ -81,6 +81,7 @@ docker compose build --build-arg INSTALL_ML_EXTRAS=true worker
 (Only worth doing for `worker` — the `api` service never runs pipeline stages, so
 installing ML extras there just bloats the image for no benefit.)
 - Demo login: `demo@sonic.dev` / `demo1234`
+- Demo platform admin (separate control plane, `/platform/login` in the frontend, `POST /api/v1/platform/auth/login`): `platform-admin@sonic.dev` / `platformadmin1234`
 
 ### Smoke test
 
@@ -142,8 +143,65 @@ dependency.
 - Not built yet (seams left): Kong, Kubernetes, Kafka, Triton, MLflow/Feast, ClickHouse,
   TimescaleDB, OpenSearch, Keycloak, telephony ingestion (Twilio / Genesys / Connect).
 
+## Tenant subdomain resolution (SON-65)
+
+Every `Tenant` already carries a unique `subdomain` slug, collected at
+signup. `app/core/tenant_resolution.py` can resolve a tenant from the
+request's `Host` header (`<slug>.{SONIC_BASE_DOMAIN}`) and, when enabled,
+`get_current_user` (`app/api/deps.py`) rejects a request whose JWT tenant
+doesn't match the tenant implied by the host it arrived on — 403 rather
+than trusting the token alone. This makes cross-tenant access structurally
+blocked at the front door, not just permission-checked.
+
+v1 scope is auto-provisioned subdomains only. Custom CNAME (a tenant's own
+domain) is out of scope — it needs a `custom_domain` column, a
+verification flow (TXT/CNAME check), and per-domain cert provisioning,
+none of which exist yet.
+
+| Env var | Default | Notes |
+|---|---|---|
+| `SONIC_BASE_DOMAIN` | `sonic.app` | The wildcard domain tenant subdomains hang off |
+| `SONIC_ENFORCE_HOST_TENANT_RESOLUTION` | `false` | Off by default: turning it on requires wildcard DNS + a wildcard TLS cert for `SONIC_BASE_DOMAIN` in front of the app, which doesn't exist in dev/test and may not exist yet in every deployment |
+
+`www`, `api`, `app`, `admin`, `static`, `assets` are reserved and never
+resolve to a tenant (they front the marketing site / bare API instead).
+
 ## Tests
 
 ```bash
 pytest          # runs on SQLite + eager Celery — no Docker required
 ```
+
+## Production deployment
+
+Set `SONIC_ENV=prod`. When it's set, the app refuses to boot unless the
+following are also set to real values — the defaults below are checked
+into the repo and publicly known, so leaving them in place in prod would
+mean anyone can forge a valid session token:
+
+| Env var | Default (dev only) | Required in prod when... |
+|---|---|---|
+| `SONIC_SECRET_KEY` | `dev-secret-key` | always — signs every JWT |
+| `SONIC_S3_SECRET_KEY` | `sonic-secret` | `SONIC_STORAGE_BACKEND=s3` (the default) |
+
+Booting with `SONIC_ENV=prod` and either value still at its default raises
+`RuntimeError` at startup (see `app/core/config.py::_check_prod_secrets`)
+rather than silently signing tokens with a key anyone can read on GitHub.
+
+Generate a real secret with e.g. `openssl rand -hex 32`.
+
+### Email (password reset)
+
+No email provider is wired up by default. `SONIC_SMTP_HOST` unset (the dev
+default) means `app/services/email.py` logs outgoing messages instead of
+sending them — the forgot-password flow works end-to-end in dev/test, it
+just doesn't deliver a real email. To send for real, point it at any SMTP
+endpoint (SES, SendGrid, Postmark, etc. all offer one):
+
+| Env var | Default | Notes |
+|---|---|---|
+| `SONIC_SMTP_HOST` | unset | unset = log-only, don't actually send |
+| `SONIC_SMTP_PORT` | `587` | |
+| `SONIC_SMTP_USER` / `SONIC_SMTP_PASSWORD` | unset | omit if the provider doesn't need auth |
+| `SONIC_SMTP_FROM` | `no-reply@sonic.dev` | |
+| `SONIC_FRONTEND_BASE_URL` | `http://localhost:5180` | used to build the reset link in the email |

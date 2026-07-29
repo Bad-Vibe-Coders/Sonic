@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useTheme, TENANTS, ROLES } from '../theme/ThemeContext'
+import { useTheme, TENANTS } from '../theme/ThemeContext'
+import { useAuth } from '../lib/AuthContext'
+import { logout } from '../lib/api'
 import Icon from '../components/Icon'
+import { Avatar } from '../components/ui'
 
 export function ThemeToggle() {
   const { dark, setDark } = useTheme()
@@ -30,7 +33,10 @@ function Dropdown({ button, children, width = 'w-56' }) {
   )
 }
 
-export function TenantSwitcher() {
+// Demo-only: lets the marketing/login screens preview per-tenant branding before
+// a token exists. It is deliberately NOT rendered anywhere inside the
+// authenticated app — see TenantBadge for that (SON-54).
+export function TenantSimulator() {
   const { tenant, setTenant } = useTheme()
   const t = TENANTS[tenant]
   return (
@@ -41,7 +47,7 @@ export function TenantSwitcher() {
         <Icon name="ChevronsUpDown" size={14} className="text-muted" />
       </button>
     }>
-      <div className="px-2 py-1.5 text-[11px] font-semibold text-muted uppercase">Switch organization</div>
+      <div className="px-2 py-1.5 text-[11px] font-semibold text-muted uppercase">Preview branding (demo)</div>
       {Object.values(TENANTS).map(o => (
         <button key={o.id} onClick={() => setTenant(o.id)}
           className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left hover:bg-surface-soft ${o.id === tenant ? 'bg-surface-soft' : ''}`}>
@@ -57,25 +63,42 @@ export function TenantSwitcher() {
   )
 }
 
-export function RoleSwitcher() {
-  const { role, setRole } = useTheme()
-  const nav = useNavigate()
+// The organization you are actually signed in to. Read-only by design: tenant
+// membership is decided by the JWT's tenant_id, not by a picker.
+export function TenantBadge() {
+  const { tenantName } = useAuth()
+  if (!tenantName) return null
+  const initials = tenantName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
   return (
-    <Dropdown button={
-      <button className="flex items-center gap-2 h-9 px-2.5 rounded-md border border-hairline bg-surface hover:bg-surface-soft transition">
-        <Icon name="UserCog" size={15} className="text-muted" />
-        <span className="text-[13px] font-medium text-ink hidden md:block">{ROLES[role].label}</span>
-        <Icon name="ChevronDown" size={14} className="text-muted" />
+    <span className="flex items-center gap-2 h-9 px-2.5 rounded-md border border-hairline bg-surface" title={tenantName}>
+      <span className="w-5 h-5 rounded ai-gradient text-white text-[10px] font-bold inline-flex items-center justify-center">{initials}</span>
+      <span className="text-[13px] font-semibold text-ink hidden sm:block">{tenantName}</span>
+    </span>
+  )
+}
+
+// Avatar + logout. The only place a session can be ended from the UI (SON-56).
+export function UserMenu() {
+  const { user } = useAuth()
+  const nav = useNavigate()
+  const label = user?.email || 'Account'
+
+  function handleLogout() {
+    logout()
+    nav('/login')
+  }
+
+  return (
+    <Dropdown width="w-52" button={<button title={label}><Avatar name={label} size={34} /></button>}>
+      <div className="px-2 py-1.5 text-[13px] font-medium text-ink truncate">{label}</div>
+      <button onClick={handleLogout}
+        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left text-[13px] font-medium text-error hover:bg-surface-soft">
+        <Icon name="LogOut" size={15} /> Sign out
       </button>
-    }>
-      <div className="px-2 py-1.5 text-[11px] font-semibold text-muted uppercase">View as role</div>
-      {Object.values(ROLES).map(r => (
-        <button key={r.id} onClick={() => { setRole(r.id); nav(r.home) }}
-          className={`w-full flex items-center justify-between px-2 py-2 rounded-md text-left hover:bg-surface-soft ${r.id === role ? 'bg-surface-soft' : ''}`}>
-          <span className="text-[13px] text-ink">{r.label}</span>
-          {r.id === role && <Icon name="Check" size={15} className="text-success" />}
-        </button>
-      ))}
     </Dropdown>
   )
 }
+
+// RoleSwitcher removed in SON-53: it let anyone "become" another role client-side,
+// which is meaningless now that access is decided by the server-verified role from
+// /auth/me. Sign in as a user with the role you want to see.

@@ -1,4 +1,5 @@
 import enum
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -10,6 +11,10 @@ from app.core.db import Base
 
 def _uuid() -> str:
     return str(uuid.uuid4())
+
+
+def _token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 def _now() -> datetime:
@@ -57,13 +62,35 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.agent)
-    platform_admin: Mapped[bool] = mapped_column(default=False)
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     notify_email: Mapped[bool] = mapped_column(default=True)
     notify_in_app: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     tenant: Mapped[Tenant] = relationship(back_populates="users")
+
+
+class InvitationStatus(str, enum.Enum):
+    pending = "pending"
+    accepted = "accepted"
+    revoked = "revoked"
+
+
+class Invitation(Base):
+    """A pending "Invite" from Team & roles (SON-49). No email is actually sent
+    yet (no mail provider is wired up anywhere in this app) — invites are
+    surfaced to the admin as a pending row with a shareable accept link."""
+
+    __tablename__ = "invitations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), index=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    role: Mapped[Role] = mapped_column(Enum(Role), default=Role.agent)
+    token: Mapped[str] = mapped_column(String(64), unique=True, default=_token)
+    status: Mapped[InvitationStatus] = mapped_column(Enum(InvitationStatus), default=InvitationStatus.pending)
+    invited_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class Conversation(Base):
@@ -256,3 +283,53 @@ class Invoice(Base):
     period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class RefreshToken(Base):
+    """Server-side record of an issued refresh token, so it can be revoked.
+
+    A JWT is otherwise valid until it expires — 14 days here — which made an
+    exfiltrated refresh token unrevokable (SON-61). Each issued token gets a
+    `jti` recorded here, plus a `family_id` shared by every token in one
+    device's rotation chain.
+
+    Rotation with reuse detection: refreshing marks the presented token `used`
+    and issues its successor in the same family. A token that is presented
+    twice means two parties hold it, so the whole family is revoked and both
+    are forced to sign in again.
+
+    Deliberately not tenant-RLS scoped: /auth/refresh runs before any tenant
+    context exists, and rows are keyed by user.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    # The token's `jti` claim.
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    # Shared by every token descended from one sign-in.
+    family_id: Mapped[str] = mapped_column(String(36), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    # Set when this token is exchanged for its successor.
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PlatformAdmin(Base):
+    """The SaaS vendor's own operators -- structurally separate from `User`
+    (SON-64). Previously platform access was a boolean flag on a tenant user,
+    which meant a platform admin's login token also carried a tenant_id and
+    role and could open that tenant's dashboard. A row here has neither: it
+    cannot belong to a tenant, so there is nothing for a tenant-scoped screen
+    to resolve it into, and a tenant token can never satisfy this table's
+    lookup (different id space, different auth endpoint, different JWT scope
+    -- see get_current_platform_admin)."""
+
+    __tablename__ = "platform_admins"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

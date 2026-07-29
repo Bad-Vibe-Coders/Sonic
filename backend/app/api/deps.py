@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.security import decode_token
-from app.models import Role, User
+from app.core.tenant_resolution import get_host_tenant
+from app.models import PlatformAdmin, Role, Tenant, User
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -16,6 +17,7 @@ bearer = HTTPBearer(auto_error=False)
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    host_tenant: Annotated[Tenant | None, Depends(get_host_tenant)],
 ) -> User:
     if credentials is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
@@ -25,10 +27,46 @@ async def get_current_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token") from exc
     if payload.get("type") != "access":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Access token required")
+    # A platform-admin token has no tenant identity to resolve (SON-64) --
+    # reject it explicitly rather than relying on the `sub` simply missing
+    # from `users`, which would be an accident of two tables never
+    # colliding rather than a real boundary.
+    if payload.get("scope") != "tenant":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Tenant token required")
     user = await db.get(User, payload["sub"])
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
+    # SON-65: when host-tenant resolution is enforced, the tenant implied by
+    # the subdomain the request arrived on must be the same tenant the token
+    # was issued for. This makes cross-tenant access structurally blocked at
+    # the front door, rather than relying solely on the JWT's own claim.
+    if host_tenant is not None and host_tenant.id != user.tenant_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Tenant/host mismatch")
     return user
+
+
+async def get_current_platform_admin(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> PlatformAdmin:
+    """Gate for the platform control plane (SON-64). Structurally separate
+    from `get_current_user`: platform admins are not rows in `users`, sign in
+    through a dedicated endpoint, and hold a token that can never satisfy a
+    tenant route (scope check above) or vice versa -- so no tenant account,
+    at any role, can reach here by URL guessing or a doctored token, and a
+    platform admin's token can never resolve into a tenant dashboard."""
+    if credentials is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+    try:
+        payload = decode_token(credentials.credentials)
+    except pyjwt.PyJWTError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token") from exc
+    if payload.get("type") != "access" or payload.get("scope") != "platform":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Platform admin token required")
+    admin = await db.get(PlatformAdmin, payload["sub"])
+    if admin is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Platform admin not found")
+    return admin
 
 
 async def get_tenant_db(
@@ -55,14 +93,3 @@ def require_role(*roles: Role):
         return user
 
     return _check
-
-
-async def require_platform_admin(
-    user: Annotated[User, Depends(get_current_user)],
-) -> User:
-    """Gate for cross-tenant platform routes. These queries intentionally use
-    `get_db` (not `get_tenant_db`) so RLS's tenant_id scope is never set,
-    letting the table-owner connection see every tenant's rows."""
-    if not user.platform_admin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Platform admin only")
-    return user

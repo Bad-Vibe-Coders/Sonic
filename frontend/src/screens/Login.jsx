@@ -1,17 +1,26 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { Button } from '../components/ui'
-import { TenantSwitcher, ThemeToggle } from '../layouts/Controls'
+import { TenantSimulator, ThemeToggle } from '../layouts/Controls'
 import Icon from '../components/Icon'
 import { login, getOnboardingStatus } from '../lib/api'
+import { homeFor } from '../lib/roles'
+import { useAuth } from '../lib/AuthContext'
 
 // Subdomain-aware login: the tenant's brand color + logo load BEFORE auth.
 export default function Login() {
   const { tenant } = useTheme()
   const t = TENANTS[tenant]
   const nav = useNavigate()
+  const { refresh } = useAuth()
+  // Where RequireAuth bounced us from, so a deep-link survives the login detour.
+  const { state } = useLocation()
+  const from = state?.from
+  // Set when a session died mid-use, so the bounce back here is explained
+  // rather than looking like a random logout (SON-60).
+  const expired = Boolean(state?.expired)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
@@ -23,7 +32,14 @@ export default function Login() {
     try {
       await login(email, password)
       const status = await getOnboardingStatus().catch(() => ({ completed_at: true }))
-      nav(status.completed_at ? '/app/admin' : '/onboarding')
+      if (!status.completed_at) { nav('/onboarding'); return }
+      // Pull the new identity into the shared context before navigating: the
+      // provider mounted while signed out, so without this the route guards
+      // still see no role and bounce straight back here. It also gives us the
+      // real role, so we can land on a page this account can actually open
+      // instead of sending everyone to /app/admin (SON-54).
+      const who = await refresh()
+      nav(from || homeFor(who?.role))
     } catch (e) {
       setError(e.status === 401 ? 'Invalid email or password.' : `Sign-in failed: ${e.message}`)
     } finally {
@@ -34,8 +50,11 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-surface-soft relative">
       <div className="absolute top-5 right-5 flex gap-2 items-center">
-        <span className="text-[12px] text-muted hidden sm:block mr-1">Simulate tenant:</span>
-        <TenantSwitcher /><ThemeToggle />
+        {/* Demo-only branding preview. Before sign-in there is no token, so the
+            real tenant is unknown; in a real deployment this comes from the
+            subdomain. It never affects which organization you log in to. */}
+        <span className="text-[12px] text-muted hidden sm:block mr-1">Preview branding:</span>
+        <TenantSimulator /><ThemeToggle />
       </div>
 
       <motion.div key={tenant} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
@@ -56,17 +75,15 @@ export default function Login() {
             </div>
           </div>
           <div>
-            <div className="flex justify-between mb-1.5"><label className="text-[13px] font-medium text-ink">Password</label><a className="text-[12px] text-muted hover:text-ink">Forgot?</a></div>
+            <div className="flex justify-between mb-1.5"><label className="text-[13px] font-medium text-ink">Password</label><Link to="/forgot-password" className="text-[12px] text-muted hover:text-ink">Forgot?</Link></div>
             <div className="flex items-center h-11 rounded-md border border-hairline bg-surface focus-within:border-ink px-3 gap-2">
               <Icon name="Lock" size={16} className="text-muted" />
               <input value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} type="password" placeholder="••••••••" className="flex-1 bg-transparent outline-none text-ink text-[15px]" />
             </div>
           </div>
+          {expired && !error && <p className="text-[13px] text-warning flex items-center gap-1.5"><Icon name="AlertCircle" size={14} /> Your session expired. Please sign in again.</p>}
           {error && <p className="text-[13px] text-error flex items-center gap-1.5"><Icon name="AlertCircle" size={14} /> {error}</p>}
           <Button className="w-full" style={{ background: 'rgb(var(--primary))', color: 'rgb(var(--on-primary))' }} disabled={busy} onClick={submit}>{busy ? 'Signing in…' : `Sign in to ${t.name}`}</Button>
-          <button className="w-full h-10 rounded-md border border-hairline bg-surface text-ink text-[14px] font-semibold flex items-center justify-center gap-2 hover:bg-surface-soft" onClick={() => nav('/app/admin')}>
-            <Icon name="KeyRound" size={16} /> Continue with SSO
-          </button>
           <button
             type="button"
             className="w-full h-9 rounded-md text-[13px] text-muted font-medium flex items-center justify-center gap-1.5 hover:text-ink"

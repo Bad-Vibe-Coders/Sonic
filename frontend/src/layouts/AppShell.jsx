@@ -1,35 +1,42 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom'
-import { useTheme } from '../theme/ThemeContext'
-import { ThemeToggle, TenantSwitcher, RoleSwitcher } from './Controls'
+import { useAuth } from '../lib/AuthContext'
+import { ADMIN_ONLY, MANAGEMENT } from '../lib/roles'
+import { ThemeToggle, TenantBadge, UserMenu } from './Controls'
 import Icon from '../components/Icon'
 import Logo from '../components/Logo'
-import { Avatar } from '../components/ui'
 
+// `roles: undefined` means every signed-in role. These lists mirror the route
+// guards in App.jsx — the nav is a view of what you may open, not the gate.
 const ALL_NAV = [
-  { to: '/app/admin', label: 'Admin', icon: 'LayoutDashboard', roles: ['admin'] },
-  { to: '/app/supervisor', label: 'Supervisor', icon: 'Gauge', roles: ['supervisor'] },
-  { to: '/app/agent', label: 'My Calls', icon: 'Headphones', roles: ['agent'] },
-  { to: '/app/conversations', label: 'Conversations', icon: 'MessagesSquare', roles: ['admin', 'supervisor', 'analyst', 'agent', 'exec'] },
-  { to: '/app/analytics', label: 'Analytics', icon: 'BarChart3', roles: ['admin', 'supervisor', 'exec'] },
-  { to: '/app/health', label: 'System Health', icon: 'Activity', roles: ['admin'] },
-  { to: '/app/notifications', label: 'Alerts', icon: 'Bell', roles: ['admin', 'supervisor', 'analyst', 'agent', 'exec'] },
-  { to: '/app/billing', label: 'Billing', icon: 'CreditCard', roles: ['admin'] },
-  { to: '/app/settings', label: 'Settings', icon: 'Settings', roles: ['admin'] },
-  { to: '/app/states', label: 'UI States', icon: 'Layers', roles: ['admin'] },
+  { to: '/app/admin', label: 'Admin', icon: 'LayoutDashboard', roles: ADMIN_ONLY },
+  // Labelled "Team", not "Supervisor" — supervisor is not a backend role, and
+  // this is the manager-facing view (SON-54).
+  { to: '/app/supervisor', label: 'Team', icon: 'Gauge', roles: MANAGEMENT },
+  { to: '/app/agent', label: 'My Calls', icon: 'Headphones' },
+  { to: '/app/conversations', label: 'Conversations', icon: 'MessagesSquare' },
+  { to: '/app/analytics', label: 'Analytics', icon: 'BarChart3', roles: MANAGEMENT },
+  { to: '/app/health', label: 'System Health', icon: 'Activity', roles: ADMIN_ONLY },
+  { to: '/app/notifications', label: 'Alerts', icon: 'Bell' },
+  { to: '/app/billing', label: 'Billing', icon: 'CreditCard', roles: MANAGEMENT },
+  { to: '/app/settings', label: 'Settings', icon: 'Settings', roles: ADMIN_ONLY },
+  { to: '/app/states', label: 'UI States', icon: 'Layers', roles: ADMIN_ONLY },
 ]
 
 export default function AppShell() {
-  const { role } = useTheme()
+  const { role } = useAuth()
   const [open, setOpen] = useState(false)
   const nav = useNavigate()
-  const items = ALL_NAV.filter(n => n.roles.includes(role))
+  const items = ALL_NAV.filter(n => !n.roles || n.roles.includes(role))
 
   return (
-    <div className="min-h-screen flex bg-canvas">
-      {/* Sidebar */}
-      <aside className={`fixed lg:static z-40 inset-y-0 left-0 w-60 bg-surface border-r border-hairline flex flex-col transition-transform ${open ? '' : '-translate-x-full lg:translate-x-0'}`}>
-        <Link to="/" className="h-16 px-5 flex items-center gap-2 border-b border-hairline">
+    <div className="h-screen flex bg-canvas overflow-hidden">
+      {/* Sidebar: fixed to the viewport at every breakpoint (not just the
+          mobile overlay) so scrolling the main content never carries it away
+          (SON-71). Bounding its height this way is also what lets its own
+          nav list scroll independently when it outgrows the viewport. */}
+      <aside className={`fixed lg:translate-x-0 z-40 inset-y-0 left-0 w-60 bg-surface border-r border-hairline flex flex-col transition-transform ${open ? '' : '-translate-x-full'}`}>
+        <Link to="/" className="h-16 px-5 flex items-center gap-2 border-b border-hairline shrink-0">
           <Logo size={28} />
           <span className="display text-[18px] text-ink">Sonic</span>
         </Link>
@@ -42,15 +49,10 @@ export default function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-3 border-t border-hairline">
-          <Link to="/platform" className="flex items-center gap-3 px-3 h-10 rounded-md text-[13px] text-muted hover:bg-surface-soft transition">
-            <Icon name="ShieldHalf" size={17} /> Platform Admin
-          </Link>
-        </div>
       </aside>
 
-      {/* Main */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      {/* Main: offset past the fixed sidebar's width and scrolls on its own. */}
+      <div className="flex-1 min-w-0 flex flex-col lg:ml-60 h-screen overflow-y-auto">
         <header className="sticky top-0 z-30 h-16 bg-canvas/90 backdrop-blur border-b border-hairline flex items-center gap-3 px-4 lg:px-6">
           <button className="lg:hidden w-9 h-9 inline-flex items-center justify-center rounded-md border border-hairline" onClick={() => setOpen(o => !o)}>
             <Icon name="Menu" size={18} />
@@ -60,14 +62,13 @@ export default function AppShell() {
             <input placeholder="Search conversations, agents…" className="bg-transparent outline-none text-[13px] text-ink w-full placeholder:text-muted" />
           </div>
           <div className="flex-1" />
-          <TenantSwitcher />
-          <RoleSwitcher />
+          <TenantBadge />
           <ThemeToggle />
           <button onClick={() => nav('/app/notifications')} className="relative w-9 h-9 inline-flex items-center justify-center rounded-md border border-hairline bg-surface hover:bg-surface-soft">
             <Icon name="Bell" size={17} />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error animate-pulseGlow" />
           </button>
-          <Avatar name="You Operator" size={34} />
+          <UserMenu />
         </header>
         <main className="flex-1 p-4 lg:p-8 max-w-content w-full mx-auto">
           <Outlet />

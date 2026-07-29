@@ -1,7 +1,9 @@
-"""Seed a demo tenant, admin user, and one sample processed conversation.
+"""Seed a demo tenant, admin user, one sample processed conversation, and a
+demo platform admin.
 
-Usage:  python -m scripts.seed   (from backend/, after `alembic upgrade head`)
-Login:  demo@sonic.dev / demo1234
+Usage:       python -m scripts.seed   (from backend/, after `alembic upgrade head`)
+Tenant login:   demo@sonic.dev / demo1234
+Platform login: platform-admin@sonic.dev / platformadmin1234 (at /platform/login)
 """
 import sys
 from datetime import UTC, datetime, timedelta
@@ -19,6 +21,7 @@ from app.models import (
     Invoice,
     InvoiceStatus,
     Plan,
+    PlatformAdmin,
     Role,
     Segment,
     Subscription,
@@ -37,8 +40,26 @@ SAMPLE_TRANSCRIPT = (
 )
 
 
+def _seed_platform_admin(db) -> None:
+    # Separate from the tenant seed below (SON-64): platform admins are not
+    # tenant users, so this has its own existence check and can't be folded
+    # into the "demo tenant already exists" early return.
+    if db.scalar(select(PlatformAdmin).where(PlatformAdmin.email == "platform-admin@sonic.dev")):
+        print("Demo platform admin already exists — skipping.")
+        return
+    db.add(PlatformAdmin(
+        email="platform-admin@sonic.dev",
+        password_hash=hash_password("platformadmin1234"),
+        name="Platform Ops",
+    ))
+    db.commit()
+    print("Login: platform-admin@sonic.dev / platformadmin1234 (at /platform/login)")
+
+
 def main() -> None:
     with SyncSessionLocal() as db:
+        _seed_platform_admin(db)
+
         tenant = db.scalar(select(Tenant).where(Tenant.subdomain == "demo"))
         if tenant:
             print("Demo tenant already exists — skipping.")

@@ -20,6 +20,17 @@ async def test_register_login_refresh_me(client):
     assert refreshed.json()["access_token"]
 
 
+async def test_me_exposes_role_and_has_no_platform_admin_field(client):
+    """Platform admin is not a tenant-user attribute at all (SON-64) — it's a
+    separate PlatformAdmin table with its own login/token scope, so /auth/me
+    has nothing to say about it either way."""
+    headers = await register_and_login(client, "claims", "claims@claims.example.com")
+
+    body = (await client.get("/api/v1/auth/me", headers=headers)).json()
+    assert body["role"] == "admin"  # first user of a tenant
+    assert "platform_admin" not in body
+
+
 async def test_bad_password_and_duplicate_subdomain(client):
     await register_and_login(client, "dupe", "bob@dupe.example.com")
     bad = await client.post("/api/v1/auth/login", json={
