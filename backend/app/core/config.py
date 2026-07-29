@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     cors_origins: list[str] = ["http://localhost:5180"]
 
+    # SON-65: subdomain-per-tenant resolution (*.{base_domain}). Custom CNAME
+    # is out of scope for v1 -- see backend/app/core/tenant_resolution.py.
+    # Disabled by default so it's a no-op until DNS/wildcard-cert infra for
+    # base_domain actually exists in an environment.
+    base_domain: str = "sonic.app"
+    enforce_host_tenant_resolution: bool = False
+
     # rate limiting (slowapi) — storage defaults to redis_url; override (e.g. "memory://")
     # for environments without Redis, such as tests.
     rate_limit_storage_url: str | None = None

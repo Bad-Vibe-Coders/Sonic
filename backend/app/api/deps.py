@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.security import decode_token
-from app.models import PlatformAdmin, Role, User
+from app.core.tenant_resolution import get_host_tenant
+from app.models import PlatformAdmin, Role, Tenant, User
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -16,6 +17,7 @@ bearer = HTTPBearer(auto_error=False)
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    host_tenant: Annotated[Tenant | None, Depends(get_host_tenant)],
 ) -> User:
     if credentials is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
@@ -34,6 +36,12 @@ async def get_current_user(
     user = await db.get(User, payload["sub"])
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
+    # SON-65: when host-tenant resolution is enforced, the tenant implied by
+    # the subdomain the request arrived on must be the same tenant the token
+    # was issued for. This makes cross-tenant access structurally blocked at
+    # the front door, rather than relying solely on the JWT's own claim.
+    if host_tenant is not None and host_tenant.id != user.tenant_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Tenant/host mismatch")
     return user
 
 

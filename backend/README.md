@@ -143,6 +143,29 @@ dependency.
 - Not built yet (seams left): Kong, Kubernetes, Kafka, Triton, MLflow/Feast, ClickHouse,
   TimescaleDB, OpenSearch, Keycloak, telephony ingestion (Twilio / Genesys / Connect).
 
+## Tenant subdomain resolution (SON-65)
+
+Every `Tenant` already carries a unique `subdomain` slug, collected at
+signup. `app/core/tenant_resolution.py` can resolve a tenant from the
+request's `Host` header (`<slug>.{SONIC_BASE_DOMAIN}`) and, when enabled,
+`get_current_user` (`app/api/deps.py`) rejects a request whose JWT tenant
+doesn't match the tenant implied by the host it arrived on — 403 rather
+than trusting the token alone. This makes cross-tenant access structurally
+blocked at the front door, not just permission-checked.
+
+v1 scope is auto-provisioned subdomains only. Custom CNAME (a tenant's own
+domain) is out of scope — it needs a `custom_domain` column, a
+verification flow (TXT/CNAME check), and per-domain cert provisioning,
+none of which exist yet.
+
+| Env var | Default | Notes |
+|---|---|---|
+| `SONIC_BASE_DOMAIN` | `sonic.app` | The wildcard domain tenant subdomains hang off |
+| `SONIC_ENFORCE_HOST_TENANT_RESOLUTION` | `false` | Off by default: turning it on requires wildcard DNS + a wildcard TLS cert for `SONIC_BASE_DOMAIN` in front of the app, which doesn't exist in dev/test and may not exist yet in every deployment |
+
+`www`, `api`, `app`, `admin`, `static`, `assets` are reserved and never
+resolve to a tenant (they front the marketing site / bare API instead).
+
 ## Tests
 
 ```bash
