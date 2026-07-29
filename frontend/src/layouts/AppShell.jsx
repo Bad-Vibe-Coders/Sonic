@@ -30,10 +30,13 @@ export default function AppShell() {
   const items = ALL_NAV.filter(n => !n.roles || n.roles.includes(role))
 
   return (
-    <div className="min-h-screen flex bg-canvas">
-      {/* Sidebar */}
-      <aside className={`fixed lg:static z-40 inset-y-0 left-0 w-60 bg-surface border-r border-hairline flex flex-col transition-transform ${open ? '' : '-translate-x-full lg:translate-x-0'}`}>
-        <Link to="/" className="h-16 px-5 flex items-center gap-2 border-b border-hairline">
+    <div className="h-screen flex bg-canvas overflow-hidden">
+      {/* Sidebar: fixed to the viewport at every breakpoint (not just the
+          mobile overlay) so scrolling the main content never carries it away
+          (SON-71). Bounding its height this way is also what lets its own
+          nav list scroll independently when it outgrows the viewport. */}
+      <aside className={`fixed lg:translate-x-0 z-40 inset-y-0 left-0 w-60 bg-surface border-r border-hairline flex flex-col transition-transform ${open ? '' : '-translate-x-full'}`}>
+        <Link to="/" className="h-16 px-5 flex items-center gap-2 border-b border-hairline shrink-0">
           <Logo size={28} />
           <span className="display text-[18px] text-ink">Sonic</span>
         </Link>
@@ -48,8 +51,8 @@ export default function AppShell() {
         </nav>
       </aside>
 
-      {/* Main */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      {/* Main: offset past the fixed sidebar's width and scrolls on its own. */}
+      <div className="flex-1 min-w-0 flex flex-col lg:ml-60 h-screen overflow-y-auto">
         <header className="sticky top-0 z-30 h-16 bg-canvas/90 backdrop-blur border-b border-hairline flex items-center gap-3 px-4 lg:px-6">
           <button className="lg:hidden w-9 h-9 inline-flex items-center justify-center rounded-md border border-hairline" onClick={() => setOpen(o => !o)}>
             <Icon name="Menu" size={18} />
