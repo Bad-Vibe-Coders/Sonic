@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def send_email(to: str, subject: str, body: str) -> None:
     settings = get_settings()
     if not settings.smtp_host:
-        logger.info("email (dev, not sent — no SMTP configured) to=%s subject=%r body=%r", to, subject, body)
+        logger.info("email (dev, not sent — no SMTP configured) to=%s subject=%r", to, subject)
         return
 
     msg = EmailMessage()
