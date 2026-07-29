@@ -165,3 +165,19 @@ Booting with `SONIC_ENV=prod` and either value still at its default raises
 rather than silently signing tokens with a key anyone can read on GitHub.
 
 Generate a real secret with e.g. `openssl rand -hex 32`.
+
+### Email (password reset)
+
+No email provider is wired up by default. `SONIC_SMTP_HOST` unset (the dev
+default) means `app/services/email.py` logs outgoing messages instead of
+sending them — the forgot-password flow works end-to-end in dev/test, it
+just doesn't deliver a real email. To send for real, point it at any SMTP
+endpoint (SES, SendGrid, Postmark, etc. all offer one):
+
+| Env var | Default | Notes |
+|---|---|---|
+| `SONIC_SMTP_HOST` | unset | unset = log-only, don't actually send |
+| `SONIC_SMTP_PORT` | `587` | |
+| `SONIC_SMTP_USER` / `SONIC_SMTP_PASSWORD` | unset | omit if the provider doesn't need auth |
+| `SONIC_SMTP_FROM` | `no-reply@sonic.dev` | |
+| `SONIC_FRONTEND_BASE_URL` | `http://localhost:5180` | used to build the reset link in the email |

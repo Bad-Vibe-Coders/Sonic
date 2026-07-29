@@ -97,6 +97,18 @@ describe('Login', () => {
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/onboarding'))
   })
 
+  it('explains the bounce when the session expired', () => {
+    renderWithProviders(<Login />, { route: '/login', state: { from: '/app/billing', expired: true } })
+
+    expect(screen.getByText('Your session expired. Please sign in again.')).toBeInTheDocument()
+  })
+
+  it('shows no expiry notice on a normal visit to /login', () => {
+    renderWithProviders(<Login />)
+
+    expect(screen.queryByText(/session expired/i)).not.toBeInTheDocument()
+  })
+
   it('shows an invalid-credentials message on a 401 response', async () => {
     const err = new Error('Unauthorized')
     err.status = 401
@@ -120,6 +132,13 @@ describe('Login', () => {
     await user.click(screen.getByRole('button', { name: /sign in to/i }))
 
     expect(await screen.findByText('Sign-in failed: Network down')).toBeInTheDocument()
+  })
+
+  it('links "Forgot?" to the password reset flow (SON-57)', () => {
+    renderWithProviders(<Login />)
+
+    const forgotLink = screen.getByRole('link', { name: 'Forgot?' })
+    expect(forgotLink).toHaveAttribute('href', '/forgot-password')
   })
 
   it('fills demo credentials when the demo button is clicked', async () => {
