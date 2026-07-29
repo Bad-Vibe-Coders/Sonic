@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     rate_limit_login: str = "8/minute"
     rate_limit_register: str = "20/hour"
     rate_limit_refresh: str = "30/minute"
+    rate_limit_forgot_password: str = "5/hour"
 
     @property
     def effective_rate_limit_storage_url(self) -> str:
@@ -53,6 +54,18 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_timeout_seconds: float = 120.0
     qa_rules_path: str = "rules/qa_rules.yaml"
+
+    # email (password reset, etc.) — unset smtp_host means no provider is
+    # configured, so app/services/email.py logs the message instead of
+    # sending it (see that module's docstring).
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = "no-reply@sonic.dev"
+    smtp_use_tls: bool = True
+    frontend_base_url: str = "http://localhost:5180"
+    password_reset_token_expire_minutes: int = 30
 
     @property
     def sync_database_url(self) -> str:

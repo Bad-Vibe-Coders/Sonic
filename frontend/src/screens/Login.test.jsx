@@ -134,6 +134,13 @@ describe('Login', () => {
     expect(await screen.findByText('Sign-in failed: Network down')).toBeInTheDocument()
   })
 
+  it('links "Forgot?" to the password reset flow (SON-57)', () => {
+    renderWithProviders(<Login />)
+
+    const forgotLink = screen.getByRole('link', { name: 'Forgot?' })
+    expect(forgotLink).toHaveAttribute('href', '/forgot-password')
+  })
+
   it('fills demo credentials when the demo button is clicked', async () => {
     const user = userEvent.setup()
     renderWithProviders(<Login />)

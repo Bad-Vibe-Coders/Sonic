@@ -10,9 +10,25 @@ from app.core.billing import DEFAULT_PLAN_CODE
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.rate_limit import limiter
-from app.core.security import create_token, decode_token, hash_password, verify_password
+from app.core.security import (
+    check_password_reset_payload,
+    create_password_reset_token,
+    create_token,
+    decode_token,
+    hash_password,
+    verify_password,
+)
 from app.models import Plan, Role, Subscription, Tenant, User
-from app.schemas import LoginRequest, RefreshRequest, RegisterRequest, TokenResponse, UserOut
+from app.schemas import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    RefreshRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    TokenResponse,
+    UserOut,
+)
+from app.services.email import send_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -72,6 +88,55 @@ async def refresh(
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
     return _tokens(user)
+
+
+@router.post("/forgot-password", status_code=202)
+@limiter.limit(settings.rate_limit_forgot_password)
+async def forgot_password(
+    request: Request, response: Response, body: ForgotPasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Always responds 202 regardless of whether the email is registered,
+    so this can't be used to enumerate accounts. Only sends an email (and
+    only logs it, until a real SMTP provider is configured -- see
+    app/services/email.py) when the address actually matches a user."""
+    user = await db.scalar(select(User).where(User.email == body.email))
+    if user is not None:
+        token = create_password_reset_token(user.id, user.password_hash)
+        reset_url = f"{get_settings().frontend_base_url}/reset-password?token={token}"
+        send_email(
+            to=user.email,
+            subject="Reset your Sonic password",
+            body=(
+                f"Someone requested a password reset for your Sonic account.\n"
+                f"If this was you, reset your password here (expires in "
+                f"{get_settings().password_reset_token_expire_minutes} minutes):\n"
+                f"{reset_url}\n\nIf you didn't request this, you can ignore this email."
+            ),
+        )
+    return {"detail": "If that email is registered, a reset link has been sent."}
+
+
+@router.post("/reset-password", status_code=204)
+async def reset_password(
+    body: ResetPasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    try:
+        payload = decode_token(body.token)
+    except pyjwt.PyJWTError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired reset link") from exc
+    if payload.get("type") != "password_reset":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid reset token")
+    user = await db.get(User, payload["sub"])
+    if user is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired reset link")
+    try:
+        check_password_reset_payload(payload, user.password_hash)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This reset link has already been used") from exc
+    user.password_hash = hash_password(body.new_password)
+    await db.commit()
 
 
 @router.get("/me", response_model=UserOut)

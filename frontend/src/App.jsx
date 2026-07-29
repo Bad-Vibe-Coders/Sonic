@@ -14,6 +14,8 @@ import Pricing from './screens/marketing/Pricing'
 import Enterprise from './screens/marketing/Enterprise'
 import Signup from './screens/Signup'
 import Login from './screens/Login'
+import ForgotPassword from './screens/ForgotPassword'
+import ResetPassword from './screens/ResetPassword'
 import Onboarding from './screens/Onboarding'
 
 import AdminDashboard from './screens/AdminDashboard'
@@ -52,6 +54,8 @@ export default function App() {
       <Route path="/enterprise" element={<Enterprise />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* everything below requires a token; unauthenticated hits redirect to /login */}
       <Route element={<RequireAuth />}>
