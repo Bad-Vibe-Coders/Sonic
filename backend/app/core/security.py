@@ -71,3 +71,32 @@ def refresh_token_lifetime() -> timedelta:
 def decode_token(token: str) -> dict:
     settings = get_settings()
     return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+
+
+def _password_fingerprint(password_hash: str) -> str:
+    """First 16 hex chars of sha256(password_hash) -- embedded in a reset
+    token so it stops working the moment the password actually changes
+    (whether via that same reset, or a normal settings change meanwhile).
+    This gets single-use semantics for free, without a token table."""
+    return hashlib.sha256(password_hash.encode()).hexdigest()[:16]
+
+
+def create_password_reset_token(user_id: str, current_password_hash: str) -> str:
+    settings = get_settings()
+    payload = {
+        "sub": user_id,
+        "type": "password_reset",
+        "pwd_fp": _password_fingerprint(current_password_hash),
+        "exp": datetime.now(UTC) + timedelta(minutes=settings.password_reset_token_expire_minutes),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
+
+
+def check_password_reset_payload(payload: dict, current_password_hash: str) -> None:
+    """Validates an already-decoded token's claims for a password reset.
+    Raises ValueError if it's not a reset token, or if it's already been
+    used / the password changed since issuance (fingerprint mismatch)."""
+    if payload.get("type") != "password_reset":
+        raise ValueError("Not a password reset token")
+    if payload.get("pwd_fp") != _password_fingerprint(current_password_hash):
+        raise ValueError("Reset token already used")

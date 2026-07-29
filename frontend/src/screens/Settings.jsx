@@ -5,7 +5,10 @@ import Icon from '../components/Icon'
 import {
   getUserSettings, updateUserSettings, changePassword,
   getTenantSettings, updateTenantSettings,
+  listTeamMembers, listInvitations, inviteTeamMember, revokeInvitation, updateMemberRole, removeTeamMember,
 } from '../lib/api'
+
+const ROLE_LABELS = { admin: 'Admin', manager: 'Manager', agent: 'Agent' }
 
 const TABS = [
   { id: 'account', label: 'Account', icon: 'User' },
@@ -232,6 +235,179 @@ function OrganizationTab() {
   )
 }
 
+function TeamTab() {
+  const { user } = useAuth()
+  const [members, setMembers] = useState(null)
+  const [invitations, setInvitations] = useState([])
+  const [inviteForm, setInviteForm] = useState({ email: '', role: 'agent' })
+  const [inviting, setInviting] = useState(false)
+  const [status, setStatus] = useState(null)
+  const [busyId, setBusyId] = useState(null)
+  const [inviteLink, setInviteLink] = useState(null)
+
+  function load() {
+    Promise.all([listTeamMembers(), listInvitations()])
+      .then(([m, i]) => { setMembers(m); setInvitations(i) })
+      .catch(() => setMembers(false))
+  }
+
+  useEffect(load, [])
+
+  async function submitInvite(e) {
+    e.preventDefault()
+    setStatus(null)
+    setInviteLink(null)
+    if (!inviteForm.email.trim()) return
+    setInviting(true)
+    try {
+      const invitation = await inviteTeamMember(inviteForm.email.trim(), inviteForm.role)
+      setInviteForm({ email: '', role: 'agent' })
+      // No email provider is wired up yet, so the accept link is handed to the
+      // admin to share directly instead of being emailed to the invitee.
+      setInviteLink(`${window.location.origin}/accept-invite?token=${invitation.token}`)
+      load()
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not send invitation.' })
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  async function changeRole(id, role) {
+    setBusyId(id)
+    setStatus(null)
+    try {
+      await updateMemberRole(id, role)
+      load()
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not update role.' })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function remove(id) {
+    setBusyId(id)
+    setStatus(null)
+    try {
+      await removeTeamMember(id)
+      load()
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not remove member.' })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function revoke(id) {
+    setBusyId(id)
+    setStatus(null)
+    try {
+      await revokeInvitation(id)
+      load()
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not revoke invitation.' })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  if (members === null) return <Card className="p-6 text-[14px] text-muted">Loading…</Card>
+  if (members === false) return <Card className="p-6 text-[14px] text-error">Couldn&rsquo;t load the team.</Card>
+
+  return (
+    <div className="space-y-5">
+      <Card className="p-6">
+        <h3 className="text-[16px] font-semibold text-ink mb-1">Invite a team member</h3>
+        <p className="text-[13px] text-muted mb-5">They&rsquo;ll get an accept link to set their own password.</p>
+        <form onSubmit={submitInvite} className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-[13px] font-medium text-ink mb-2" htmlFor="invite-email">Email</label>
+            <input id="invite-email" type="email" required placeholder="teammate@company.com"
+              className="h-10 w-full rounded-md border border-hairline bg-surface px-3 text-[14px] text-ink"
+              value={inviteForm.email}
+              onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-ink mb-2" htmlFor="invite-role">Role</label>
+            <select id="invite-role"
+              className="h-10 rounded-md border border-hairline bg-surface px-3 text-[14px] text-ink"
+              value={inviteForm.role}
+              onChange={e => setInviteForm(f => ({ ...f, role: e.target.value }))}
+            >
+              {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <Button type="submit" size="sm" disabled={inviting}>
+            <Icon name="UserPlus" size={15} /> {inviting ? 'Sending…' : 'Invite'}
+          </Button>
+        </form>
+        <div className="mt-4 space-y-3">
+          <Banner status={status} />
+          {inviteLink && (
+            <div className="rounded-md border border-hairline p-3 flex items-center gap-2">
+              <code className="flex-1 font-mono text-[12px] text-body truncate">{inviteLink}</code>
+              <Button variant="ghost" size="sm" onClick={() => navigator.clipboard.writeText(inviteLink)}>
+                <Icon name="Copy" size={14} /> Copy link
+              </Button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="text-[16px] font-semibold text-ink mb-4">Team members</h3>
+        <div className="divide-y divide-hairline">
+          {members.map(m => (
+            <div key={m.id} className="flex items-center gap-3 py-3">
+              <Avatar name={m.name || m.email} size={34} />
+              <span className="flex-1">
+                <span className="block text-[14px] font-medium text-ink">{m.name || m.email}</span>
+                <span className="block text-[12px] text-muted">{m.email}</span>
+              </span>
+              <select
+                className="h-9 rounded-md border border-hairline bg-surface px-2 text-[13px] text-ink disabled:opacity-50"
+                value={m.role}
+                disabled={busyId === m.id}
+                onChange={e => changeRole(m.id, e.target.value)}
+              >
+                {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              <Button variant="ghost" size="sm" disabled={busyId === m.id || m.id === user?.id}
+                onClick={() => remove(m.id)} title={m.id === user?.id ? "You can't remove yourself" : 'Remove'}>
+                <Icon name="Trash2" size={16} />
+              </Button>
+            </div>
+          ))}
+          {members.length === 0 && <p className="text-[13px] text-muted py-3">No team members yet.</p>}
+        </div>
+      </Card>
+
+      {invitations.length > 0 && (
+        <Card className="p-6">
+          <h3 className="text-[16px] font-semibold text-ink mb-4">Pending invitations</h3>
+          <div className="divide-y divide-hairline">
+            {invitations.map(inv => (
+              <div key={inv.id} className="flex items-center gap-3 py-3">
+                <Avatar name={inv.email} size={34} />
+                <span className="flex-1">
+                  <span className="block text-[14px] font-medium text-ink">{inv.email}</span>
+                  <span className="block text-[12px] text-muted">{ROLE_LABELS[inv.role] || inv.role}</span>
+                </span>
+                <StatusChip status="review">Pending</StatusChip>
+                <Button variant="ghost" size="sm" disabled={busyId === inv.id} onClick={() => revoke(inv.id)}>
+                  <Icon name="X" size={16} />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}
+
 export default function Settings() {
   const [tab, setTab] = useState('account')
   // The real organization from the token, not the demo tenant preset.
@@ -274,14 +450,7 @@ export default function Settings() {
             </Card>
           </>}
 
-          {tab === 'team' && <Card className="p-6">
-            <div className="flex items-center justify-between mb-4"><h3 className="text-[16px] font-semibold text-ink">Team members</h3><Button size="sm"><Icon name="UserPlus" size={15} /> Invite</Button></div>
-            <div className="divide-y divide-hairline">
-              {[['Maya Chen', 'Supervisor / QA', 'active'], ['Liam Ortiz', 'Agent', 'active'], ['Priya Nair', 'QA Analyst', 'active'], ['Tom Becker', 'Agent', 'review']].map(([n, r, s]) => (
-                <div key={n} className="flex items-center gap-3 py-3"><Avatar name={n} size={34} /><span className="flex-1"><span className="block text-[14px] font-medium text-ink">{n}</span><span className="block text-[12px] text-muted">{r}</span></span><StatusChip status={s === 'active' ? 'active' : 'review'} /><Button variant="ghost" size="sm"><Icon name="MoreHorizontal" size={16} /></Button></div>
-              ))}
-            </div>
-          </Card>}
+          {tab === 'team' && <TeamTab />}
 
           {tab === 'integrations' && <div className="grid sm:grid-cols-2 gap-4">
             {[['Twilio', 'Telephony', true], ['Genesys', 'Contact center', true], ['Salesforce', 'CRM', false], ['Slack', 'Alerts', true], ['Snowflake', 'Data warehouse', false], ['Zendesk', 'Ticketing', false]].map(([n, d, on]) => (

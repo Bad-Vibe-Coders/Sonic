@@ -25,6 +25,15 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -173,6 +182,46 @@ class TenantSettingsUpdate(BaseModel):
     name: str | None = None
     timezone: str | None = None
     qa_rules_path: str | None = None
+
+
+class TeamMemberOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    email: str
+    name: str | None = None
+    role: str
+    status: str = "active"
+
+
+class InvitationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    email: str
+    role: str
+    status: str
+    created_at: datetime
+
+
+class InviteCreateOut(InvitationOut):
+    # Only returned once, straight after creation -- there's no email provider
+    # wired up, so this is the only way the admin can hand the invitee their
+    # accept link. Never included in the /invitations listing.
+    token: str
+
+
+class InviteRequest(BaseModel):
+    email: EmailStr
+    role: str = "agent"
+
+
+class RoleUpdateRequest(BaseModel):
+    role: str
+
+
+class AcceptInviteRequest(BaseModel):
+    token: str
+    password: str
+    name: str | None = None
 
 
 class PlanOut(BaseModel):

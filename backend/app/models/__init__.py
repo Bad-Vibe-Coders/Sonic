@@ -1,4 +1,5 @@
 import enum
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -10,6 +11,10 @@ from app.core.db import Base
 
 def _uuid() -> str:
     return str(uuid.uuid4())
+
+
+def _token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 def _now() -> datetime:
@@ -64,6 +69,29 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     tenant: Mapped[Tenant] = relationship(back_populates="users")
+
+
+class InvitationStatus(str, enum.Enum):
+    pending = "pending"
+    accepted = "accepted"
+    revoked = "revoked"
+
+
+class Invitation(Base):
+    """A pending "Invite" from Team & roles (SON-49). No email is actually sent
+    yet (no mail provider is wired up anywhere in this app) — invites are
+    surfaced to the admin as a pending row with a shareable accept link."""
+
+    __tablename__ = "invitations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), index=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    role: Mapped[Role] = mapped_column(Enum(Role), default=Role.agent)
+    token: Mapped[str] = mapped_column(String(64), unique=True, default=_token)
+    status: Mapped[InvitationStatus] = mapped_column(Enum(InvitationStatus), default=InvitationStatus.pending)
+    invited_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class Conversation(Base):
