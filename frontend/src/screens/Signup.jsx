@@ -8,6 +8,15 @@ import { register } from '../lib/api'
 
 const STEPS = ['Account', 'Workspace', 'Setup']
 
+const PASSWORD_MIN_LENGTH = 8
+
+function passwordError(password) {
+  if (password.length < PASSWORD_MIN_LENGTH) return `Password must be at least ${PASSWORD_MIN_LENGTH} characters long.`
+  if (!/[A-Za-z]/.test(password)) return 'Password must contain at least one letter.'
+  if (!/\d/.test(password)) return 'Password must contain at least one number.'
+  return null
+}
+
 export default function Signup() {
   const [step, setStep] = useState(0)
   const [sub, setSub] = useState('acme')
@@ -74,8 +83,14 @@ export default function Signup() {
                 <p className="text-muted mb-6">Start free — no card required.</p>
                 <Field label="Work email" placeholder="you@company.com" icon="Mail" value={email} onChange={e => setEmail(e.target.value)} />
                 <Field label="Full name" placeholder="Jordan Lee" icon="User" />
-                <Field label="Password" placeholder="••••••••" icon="Lock" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-                <Button className="w-full mt-2" onClick={() => setStep(1)}>Continue</Button>
+                <Field label="Password" placeholder="••••••••" icon="Lock" type="password" value={password} onChange={e => { setPassword(e.target.value); setError(null) }} />
+                <p className="text-[12px] text-muted mb-3">At least {PASSWORD_MIN_LENGTH} characters, with a letter and a number.</p>
+                {error && <p className="text-[13px] text-error flex items-center gap-1.5 mb-3"><Icon name="AlertCircle" size={14} /> {error}</p>}
+                <Button className="w-full mt-2" onClick={() => {
+                  const err = passwordError(password)
+                  if (err) { setError(err); return }
+                  setStep(1)
+                }}>Continue</Button>
                 <p className="text-[13px] text-muted text-center mt-4">Already have an account? <Link to="/login" className="text-ink font-semibold">Sign in</Link></p>
               </motion.div>
             )}
