@@ -31,6 +31,7 @@ from app.schemas import (
     TokenResponse,
     UserOut,
 )
+from app.services.auth import revoke_all_refresh_tokens
 from app.services.email import send_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -172,11 +173,7 @@ async def logout_all(
 ):
     """Revoke every refresh token this user holds — the "sign out everywhere"
     escape hatch for a token you believe was stolen."""
-    await db.execute(
-        update(RefreshToken)
-        .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
-        .values(revoked_at=_utcnow())
-    )
+    await revoke_all_refresh_tokens(db, user.id)
     await db.commit()
     return None
 
@@ -227,6 +224,9 @@ async def reset_password(
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "This reset link has already been used") from exc
     user.password_hash = hash_password(body.new_password)
+    # Same reasoning as change_my_password (SON-67): a stolen refresh token
+    # shouldn't survive the very reset meant to lock the account down.
+    await revoke_all_refresh_tokens(db, user.id)
     await db.commit()
 
 
