@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import select
 
 from app.core.db import SyncSessionLocal
@@ -33,6 +35,18 @@ def _add_invoice(tenant_admin_email: str, *, amount_cents: int = 4900) -> str:
         session.commit()
         session.refresh(invoice)
         return invoice.id
+
+
+def _lapse_period(tenant_admin_email: str, *, days_ago: int) -> None:
+    """Simulate a subscription whose current period ended `days_ago` days in
+    the past, so the next billing read has to catch up on rollover."""
+    with SyncSessionLocal() as session:
+        admin = session.scalar(select(User).where(User.email == tenant_admin_email))
+        sub = session.scalar(select(Subscription).where(Subscription.tenant_id == admin.tenant_id))
+        now = datetime.now(UTC)
+        sub.current_period_end = now - timedelta(days=days_ago)
+        sub.current_period_start = sub.current_period_end - timedelta(days=30)
+        session.commit()
 
 
 async def test_new_tenant_is_lazily_enrolled_in_default_plan(client):
@@ -101,6 +115,61 @@ async def test_invoices_empty_for_a_fresh_tenant(client):
     resp = await client.get("/api/v1/billing/invoices", headers=headers)
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+async def test_invoices_still_empty_before_the_period_has_elapsed(client):
+    """Guards against over-eager generation: a subscription mid-period must
+    not produce an invoice just because billing was read."""
+    headers = await register_and_login(client, "billing-h", "h@billing-h.example.com")
+    await client.get("/api/v1/billing/me", headers=headers)
+
+    resp = await client.get("/api/v1/billing/invoices", headers=headers)
+    assert resp.json() == []
+
+
+async def test_reading_billing_after_period_lapses_generates_an_invoice(client):
+    headers = await register_and_login(client, "billing-roll", "a@billing-roll.example.com")
+    await client.get("/api/v1/billing/me", headers=headers)  # creates the subscription
+    _lapse_period("a@billing-roll.example.com", days_ago=1)
+
+    summary = await client.get("/api/v1/billing/me", headers=headers)
+    assert summary.status_code == 200
+    # The lapsed period was closed and a fresh one started in the future.
+    new_end = datetime.fromisoformat(summary.json()["current_period_end"])
+    if new_end.tzinfo is None:
+        new_end = new_end.replace(tzinfo=UTC)
+    assert new_end > datetime.now(UTC)
+
+    invoices = (await client.get("/api/v1/billing/invoices", headers=headers)).json()
+    assert len(invoices) == 1
+    assert invoices[0]["amount_cents"] == 49900  # team plan price
+    assert invoices[0]["status"] == "paid"
+
+
+async def test_multiple_elapsed_periods_each_get_their_own_invoice(client):
+    headers = await register_and_login(client, "billing-multi", "a@billing-multi.example.com")
+    await client.get("/api/v1/billing/me", headers=headers)
+    _lapse_period("a@billing-multi.example.com", days_ago=95)  # ceil(95/30) = 4 periods behind
+
+    await client.get("/api/v1/billing/me", headers=headers)
+
+    invoices = (await client.get("/api/v1/billing/invoices", headers=headers)).json()
+    assert len(invoices) == 4
+
+
+async def test_changing_plan_invoices_the_partial_period_on_the_old_plan(client):
+    headers = await register_and_login(client, "billing-switch", "a@billing-switch.example.com")
+    await client.get("/api/v1/billing/me", headers=headers)  # team plan, price 49900
+
+    resp = await client.put("/api/v1/billing/plan", headers=headers, json={"plan_code": "business"})
+    assert resp.status_code == 200
+
+    invoices = (await client.get("/api/v1/billing/invoices", headers=headers)).json()
+    assert len(invoices) == 1
+    assert invoices[0]["amount_cents"] == 49900  # billed at the OLD (team) price, not business
+
+    summary = (await client.get("/api/v1/billing/me", headers=headers)).json()
+    assert summary["plan"]["code"] == "business"
 
 
 async def test_billing_requires_authentication(client):
