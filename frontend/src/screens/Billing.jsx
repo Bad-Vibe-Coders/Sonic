@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, Button, SectionTitle, Reveal, StatusChip } from '../components/ui'
 import Icon from '../components/Icon'
-import { getBillingSummary, listBillingPlans, listInvoices, changePlan } from '../lib/api'
+import { getBillingSummary, listBillingPlans, listInvoices, changePlan, downloadInvoice } from '../lib/api'
 import { useAuth } from '../lib/AuthContext'
 import { ROLE_ADMIN } from '../lib/roles'
 
@@ -22,6 +22,8 @@ export default function Billing() {
   const [loadError, setLoadError] = useState(null)
   const [switching, setSwitching] = useState(null)
   const [switchError, setSwitchError] = useState(null)
+  const [downloading, setDownloading] = useState(null)
+  const [downloadError, setDownloadError] = useState(null)
 
   function refresh() {
     return Promise.all([getBillingSummary(), listBillingPlans(), listInvoices()])
@@ -41,6 +43,18 @@ export default function Billing() {
       setSwitchError(`Couldn't switch plans: ${err.message}`)
     } finally {
       setSwitching(null)
+    }
+  }
+
+  async function handleDownload(id) {
+    setDownloading(id)
+    setDownloadError(null)
+    try {
+      await downloadInvoice(id)
+    } catch (err) {
+      setDownloadError(`Couldn't download invoice: ${err.message}`)
+    } finally {
+      setDownloading(null)
     }
   }
 
@@ -100,7 +114,10 @@ export default function Billing() {
                 <div className="flex justify-between"><span className="text-muted">{summary.plan.name} plan</span><span className="text-ink">{fmtMoney(latestInvoice.amount_cents)}</span></div>
                 <div className="flex justify-between pt-2.5 border-t border-hairline font-semibold"><span className="text-ink">Issued {fmtDate(latestInvoice.issued_at)}</span><StatusChip status={latestInvoice.status === 'paid' ? 'pass' : 'review'}>{latestInvoice.status}</StatusChip></div>
               </div>
-              <Button variant="secondary" className="w-full mt-4" disabled><Icon name="Download" size={15} /> Download invoice</Button>
+              <Button variant="secondary" className="w-full mt-4" disabled={downloading === latestInvoice.id} onClick={() => handleDownload(latestInvoice.id)}>
+                <Icon name="Download" size={15} /> {downloading === latestInvoice.id ? 'Downloading…' : 'Download invoice'}
+              </Button>
+              {downloadError && <p className="text-[13px] text-error flex items-center gap-1.5 mt-2"><Icon name="AlertCircle" size={14} /> {downloadError}</p>}
             </>
           ) : (
             <p className="text-[13px] text-muted py-6 text-center">No invoices yet.</p>
@@ -120,6 +137,15 @@ export default function Billing() {
                 <div className="flex items-center gap-3">
                   <span className="text-ink">{fmtMoney(inv.amount_cents)}</span>
                   <StatusChip status={inv.status === 'paid' ? 'pass' : 'review'}>{inv.status}</StatusChip>
+                  <button
+                    type="button"
+                    title="Download invoice"
+                    disabled={downloading === inv.id}
+                    onClick={() => handleDownload(inv.id)}
+                    className="w-8 h-8 inline-flex items-center justify-center rounded-md border border-hairline bg-surface text-body hover:bg-surface-soft transition disabled:opacity-50"
+                  >
+                    <Icon name="Download" size={14} />
+                  </button>
                 </div>
               </div>
             ))}
