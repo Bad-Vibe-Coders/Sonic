@@ -28,6 +28,17 @@ async def test_security_headers_present_even_on_error_responses(client):
         assert resp.headers[header] == value
 
 
+async def test_docs_is_exempt_from_csp_but_keeps_other_headers(client):
+    """Swagger UI loads CDN assets + an inline bootstrap script, which
+    default-src 'none' blocks outright -- /docs is the only page-rendering
+    surface on this API, so it alone skips the CSP header."""
+    resp = await client.get("/docs")
+    assert resp.status_code == 200
+    assert "content-security-policy" not in resp.headers
+    assert resp.headers["x-content-type-options"] == "nosniff"
+    assert resp.headers["x-frame-options"] == "DENY"
+
+
 async def test_no_hsts_in_the_test_environment(client):
     """settings.env defaults to non-prod in tests -- HSTS must be absent so a
     plain-HTTP dev/test server is never told to force HTTPS on itself."""
