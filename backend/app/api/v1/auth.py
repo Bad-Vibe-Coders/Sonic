@@ -61,7 +61,7 @@ async def register(
     if default_plan is not None:
         db.add(Subscription(tenant_id=tenant.id, plan_id=default_plan.id))
     await db.flush()
-    tokens = _tokens(user, db)
+    tokens = _tokens(user, tenant, db)
     await db.commit()
     return tokens
 
@@ -75,7 +75,8 @@ async def login(
     user = await db.scalar(select(User).where(User.email == body.email))
     if user is None or not verify_password(body.password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
-    tokens = _tokens(user, db)
+    tenant = await db.get(Tenant, user.tenant_id)
+    tokens = _tokens(user, tenant, db)
     await db.commit()
     return tokens
 
@@ -136,8 +137,9 @@ async def refresh(
     user = await db.get(User, payload["sub"])
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
+    tenant = await db.get(Tenant, user.tenant_id)
 
-    tokens = _tokens(user, db, family_id=record.family_id)
+    tokens = _tokens(user, tenant, db, family_id=record.family_id)
     await _purge_expired(db, user.id)
     await db.commit()
     return tokens
@@ -279,7 +281,9 @@ async def _purge_expired(db: AsyncSession, user_id: str) -> None:
     )
 
 
-def _tokens(user: User, db: AsyncSession, family_id: str | None = None) -> TokenResponse:
+def _tokens(
+    user: User, tenant: Tenant, db: AsyncSession, family_id: str | None = None,
+) -> TokenResponse:
     """Issue an access/refresh pair and record the refresh token.
 
     Caller commits — refresh rotation needs the new record and the consumed
@@ -298,4 +302,6 @@ def _tokens(user: User, db: AsyncSession, family_id: str | None = None) -> Token
         refresh_token=create_token(
             user.id, user.tenant_id, user.role.value, "refresh", jti=jti, family_id=family,
         ),
+        tenant_subdomain=tenant.subdomain,
+        tenant_name=tenant.name,
     )

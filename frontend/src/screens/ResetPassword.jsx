@@ -1,14 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { Button } from '../components/ui'
 import Icon from '../components/Icon'
 import { resetPassword } from '../lib/api'
 
 export default function ResetPassword() {
-  const { tenant } = useTheme()
-  const t = TENANTS[tenant]
   const nav = useNavigate()
   const [params] = useSearchParams()
   const token = params.get('token') || ''
@@ -40,7 +37,7 @@ export default function ResetPassword() {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
         className="w-full max-w-sm rounded-xl border border-hairline bg-surface shadow-card p-8">
         <div className="flex flex-col items-center text-center mb-7">
-          <span className="w-14 h-14 rounded-2xl text-white font-bold text-[20px] inline-flex items-center justify-center mb-3" style={{ background: 'rgb(var(--primary))' }}>{t.initials}</span>
+          <span className="w-14 h-14 rounded-2xl text-white font-bold text-[20px] inline-flex items-center justify-center mb-3" style={{ background: 'rgb(var(--primary))' }}>S</span>
           <h1 className="display d-sm text-ink">Set a new password</h1>
         </div>
 

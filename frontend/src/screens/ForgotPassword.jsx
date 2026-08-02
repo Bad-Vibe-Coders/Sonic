@@ -1,14 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { Button } from '../components/ui'
 import Icon from '../components/Icon'
 import { forgotPassword } from '../lib/api'
 
 export default function ForgotPassword() {
-  const { tenant } = useTheme()
-  const t = TENANTS[tenant]
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
@@ -34,7 +31,7 @@ export default function ForgotPassword() {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
         className="w-full max-w-sm rounded-xl border border-hairline bg-surface shadow-card p-8">
         <div className="flex flex-col items-center text-center mb-7">
-          <span className="w-14 h-14 rounded-2xl text-white font-bold text-[20px] inline-flex items-center justify-center mb-3" style={{ background: 'rgb(var(--primary))' }}>{t.initials}</span>
+          <span className="w-14 h-14 rounded-2xl text-white font-bold text-[20px] inline-flex items-center justify-center mb-3" style={{ background: 'rgb(var(--primary))' }}>S</span>
           <h1 className="display d-sm text-ink">Reset your password</h1>
           <p className="text-[13px] text-muted mt-1">We&rsquo;ll email you a link to set a new one.</p>
         </div>

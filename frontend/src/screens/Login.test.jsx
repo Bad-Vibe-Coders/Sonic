@@ -43,7 +43,7 @@ describe('Login', () => {
 
     await user.type(screen.getByPlaceholderText('you@company.com'), 'demo@sonic.dev')
     await user.type(screen.getByPlaceholderText('••••••••'), 'demo1234')
-    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
     await waitFor(() => expect(login).toHaveBeenCalledWith('demo@sonic.dev', 'demo1234'))
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/app/admin'))
@@ -59,7 +59,7 @@ describe('Login', () => {
     const user = userEvent.setup()
     renderWithProviders(<Login />)
 
-    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(home))
   })
@@ -70,7 +70,7 @@ describe('Login', () => {
     const user = userEvent.setup()
     renderWithProviders(<Login />)
 
-    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/app/agent'))
   })
@@ -81,7 +81,7 @@ describe('Login', () => {
     // RequireAuth hands the attempted path over in location state.
     renderWithProviders(<Login />, { route: '/login', state: { from: '/app/billing' } })
 
-    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/app/billing'))
   })
@@ -92,7 +92,7 @@ describe('Login', () => {
     const user = userEvent.setup()
     renderWithProviders(<Login />, { route: '/login', state: { from: '/app/billing' } })
 
-    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/onboarding'))
   })
@@ -118,7 +118,7 @@ describe('Login', () => {
 
     await user.type(screen.getByPlaceholderText('you@company.com'), 'demo@sonic.dev')
     await user.type(screen.getByPlaceholderText('••••••••'), 'wrongpass')
-    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
     expect(await screen.findByText('Invalid email or password.')).toBeInTheDocument()
     expect(mockNavigate).not.toHaveBeenCalled()
@@ -129,7 +129,7 @@ describe('Login', () => {
     const user = userEvent.setup()
     renderWithProviders(<Login />)
 
-    await user.click(screen.getByRole('button', { name: /sign in to/i }))
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
     expect(await screen.findByText('Sign-in failed: Network down')).toBeInTheDocument()
   })
@@ -139,6 +139,49 @@ describe('Login', () => {
 
     const forgotLink = screen.getByRole('link', { name: 'Forgot?' })
     expect(forgotLink).toHaveAttribute('href', '/forgot-password')
+  })
+
+  it('redirects to the tenant subdomain when login resolves a different one (SON-66)', async () => {
+    login.mockResolvedValueOnce({ access_token: 'tok', tenant_subdomain: 'helix' })
+    const assign = vi.fn()
+    const originalLocation = window.location
+    delete window.location
+    window.location = { ...originalLocation, hostname: 'sonic.app', protocol: 'https:', port: '', assign }
+
+    const user = userEvent.setup()
+    renderWithProviders(<Login />)
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+    await waitFor(() => expect(assign).toHaveBeenCalled())
+    const url = assign.mock.calls[0][0]
+    expect(url).toContain('https://helix.sonic.app/app')
+    expect(url).toContain('#handoff=')
+    expect(mockNavigate).not.toHaveBeenCalled()
+
+    window.location = originalLocation
+  })
+
+  it('stays on the current origin when already on the resolved tenant subdomain', async () => {
+    login.mockResolvedValueOnce({ access_token: 'tok', tenant_subdomain: 'helix' })
+    const originalLocation = window.location
+    delete window.location
+    window.location = { ...originalLocation, hostname: 'helix.sonic.app', protocol: 'https:', port: '' }
+
+    const user = userEvent.setup()
+    renderWithProviders(<Login />)
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/app/admin'))
+
+    window.location = originalLocation
+  })
+
+  it('never names or previews a tenant before sign-in (SON-66)', () => {
+    renderWithProviders(<Login />)
+
+    expect(screen.queryByText(/Helix Health|NorthBank/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\.sonic\.ai/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Preview branding/i)).not.toBeInTheDocument()
   })
 
   it('fills demo credentials when the demo button is clicked', async () => {

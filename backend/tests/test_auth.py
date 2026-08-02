@@ -13,11 +13,29 @@ async def test_register_login_refresh_me(client):
         "email": "alice@acme-corp.example.com", "password": "password123"})
     assert login.status_code == 200
     tokens = login.json()
+    assert tokens["tenant_subdomain"] == "acme"
+    assert tokens["tenant_name"] == "acme Inc"
 
     refreshed = await client.post("/api/v1/auth/refresh",
                                   json={"refresh_token": tokens["refresh_token"]})
     assert refreshed.status_code == 200
     assert refreshed.json()["access_token"]
+    assert refreshed.json()["tenant_subdomain"] == "acme"
+
+
+async def test_login_returns_own_tenant_subdomain_never_another(client):
+    """Each tenant's login must resolve its own subdomain — a user from one
+    tenant should never receive another tenant's subdomain/name (SON-66)."""
+    await register_and_login(client, "helix", "admin@helix.example.com")
+    await register_and_login(client, "northbank", "admin@northbank.example.com")
+
+    helix_login = await client.post("/api/v1/auth/login", json={
+        "email": "admin@helix.example.com", "password": "password123"})
+    northbank_login = await client.post("/api/v1/auth/login", json={
+        "email": "admin@northbank.example.com", "password": "password123"})
+
+    assert helix_login.json()["tenant_subdomain"] == "helix"
+    assert northbank_login.json()["tenant_subdomain"] == "northbank"
 
 
 async def test_me_exposes_role_and_has_no_platform_admin_field(client):
