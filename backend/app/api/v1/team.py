@@ -9,7 +9,7 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.rate_limit import limiter
 from app.core.security import create_token, hash_password
-from app.models import Invitation, InvitationStatus, Role, User
+from app.models import Invitation, InvitationStatus, Role, Tenant, User
 from app.schemas import (
     AcceptInviteRequest,
     InvitationOut,
@@ -24,10 +24,12 @@ router = APIRouter(prefix="/team", tags=["team"])
 settings = get_settings()
 
 
-def _tokens(user: User) -> TokenResponse:
+def _tokens(user: User, tenant: Tenant) -> TokenResponse:
     return TokenResponse(
         access_token=create_token(user.id, user.tenant_id, user.role.value, "access"),
         refresh_token=create_token(user.id, user.tenant_id, user.role.value, "refresh"),
+        tenant_subdomain=tenant.subdomain,
+        tenant_name=tenant.name,
     )
 
 
@@ -173,5 +175,6 @@ async def accept_invite(
     )
     db.add(user)
     invitation.status = InvitationStatus.accepted
+    tenant = await db.get(Tenant, invitation.tenant_id)
     await db.commit()
-    return _tokens(user)
+    return _tokens(user, tenant)
