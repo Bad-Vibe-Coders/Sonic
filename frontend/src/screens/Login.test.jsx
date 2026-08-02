@@ -141,6 +141,41 @@ describe('Login', () => {
     expect(forgotLink).toHaveAttribute('href', '/forgot-password')
   })
 
+  it('redirects to the tenant subdomain when login resolves a different one (SON-66)', async () => {
+    login.mockResolvedValueOnce({ access_token: 'tok', tenant_subdomain: 'helix' })
+    const assign = vi.fn()
+    const originalLocation = window.location
+    delete window.location
+    window.location = { ...originalLocation, hostname: 'sonic.app', protocol: 'https:', port: '', assign }
+
+    const user = userEvent.setup()
+    renderWithProviders(<Login />)
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+    await waitFor(() => expect(assign).toHaveBeenCalled())
+    const url = assign.mock.calls[0][0]
+    expect(url).toContain('https://helix.sonic.app/app')
+    expect(url).toContain('#handoff=')
+    expect(mockNavigate).not.toHaveBeenCalled()
+
+    window.location = originalLocation
+  })
+
+  it('stays on the current origin when already on the resolved tenant subdomain', async () => {
+    login.mockResolvedValueOnce({ access_token: 'tok', tenant_subdomain: 'helix' })
+    const originalLocation = window.location
+    delete window.location
+    window.location = { ...originalLocation, hostname: 'helix.sonic.app', protocol: 'https:', port: '' }
+
+    const user = userEvent.setup()
+    renderWithProviders(<Login />)
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/app/admin'))
+
+    window.location = originalLocation
+  })
+
   it('never names or previews a tenant before sign-in (SON-66)', () => {
     renderWithProviders(<Login />)
 

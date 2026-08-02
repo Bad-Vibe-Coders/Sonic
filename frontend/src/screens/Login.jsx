@@ -7,6 +7,7 @@ import Icon from '../components/Icon'
 import { login, getOnboardingStatus } from '../lib/api'
 import { homeFor } from '../lib/roles'
 import { useAuth } from '../lib/AuthContext'
+import { extractSubdomain, redirectToTenant } from '../lib/tenantRedirect'
 
 // Universal sign-in: email + password alone resolve the tenant server-side
 // (SON-66). No tenant is named or shown before credentials are verified.
@@ -28,9 +29,20 @@ export default function Login() {
     setError(null)
     setBusy(true)
     try {
-      await login(email, password)
+      const tokens = await login(email, password)
       const status = await getOnboardingStatus().catch(() => ({ completed_at: true }))
-      if (!status.completed_at) { nav('/onboarding'); return }
+      const destination = status.completed_at ? null : '/onboarding'
+
+      // The backend resolves the tenant from the email alone (SON-66); if
+      // that tenant's subdomain isn't the one we're already on, hop there
+      // with the resolved destination instead of navigating locally.
+      const currentSubdomain = extractSubdomain(window.location.hostname)
+      if (tokens.tenant_subdomain && tokens.tenant_subdomain !== currentSubdomain) {
+        redirectToTenant(tokens.tenant_subdomain, destination || from || '/app', tokens)
+        return
+      }
+
+      if (destination) { nav(destination); return }
       // Pull the new identity into the shared context before navigating: the
       // provider mounted while signed out, so without this the route guards
       // still see no role and bounce straight back here. It also gives us the
