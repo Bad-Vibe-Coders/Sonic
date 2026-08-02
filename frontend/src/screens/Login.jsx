@@ -1,18 +1,16 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useTheme, TENANTS } from '../theme/ThemeContext'
 import { Button } from '../components/ui'
-import { TenantSimulator, ThemeToggle } from '../layouts/Controls'
+import { ThemeToggle } from '../layouts/Controls'
 import Icon from '../components/Icon'
 import { login, getOnboardingStatus } from '../lib/api'
 import { homeFor } from '../lib/roles'
 import { useAuth } from '../lib/AuthContext'
 
-// Subdomain-aware login: the tenant's brand color + logo load BEFORE auth.
+// Universal sign-in: email + password alone resolve the tenant server-side
+// (SON-66). No tenant is named or shown before credentials are verified.
 export default function Login() {
-  const { tenant } = useTheme()
-  const t = TENANTS[tenant]
   const nav = useNavigate()
   const { refresh } = useAuth()
   // Where RequireAuth bounced us from, so a deep-link survives the login detour.
@@ -50,20 +48,14 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-surface-soft relative">
       <div className="absolute top-5 right-5 flex gap-2 items-center">
-        {/* Demo-only branding preview. Before sign-in there is no token, so the
-            real tenant is unknown; in a real deployment this comes from the
-            subdomain. It never affects which organization you log in to. */}
-        <span className="text-[12px] text-muted hidden sm:block mr-1">Preview branding:</span>
-        <TenantSimulator /><ThemeToggle />
+        <ThemeToggle />
       </div>
 
-      <motion.div key={tenant} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
         className="w-full max-w-sm rounded-xl border border-hairline bg-surface shadow-card p-8">
-        {/* tenant brand header (loads from subdomain) */}
         <div className="flex flex-col items-center text-center mb-7">
-          <span className="w-14 h-14 rounded-2xl text-white font-bold text-[20px] inline-flex items-center justify-center mb-3" style={{ background: 'rgb(var(--primary))' }}>{t.initials}</span>
-          <h1 className="display d-sm text-ink">{t.name}</h1>
-          <p className="text-[13px] text-muted font-mono mt-1">{t.id}.sonic.ai</p>
+          <span className="w-14 h-14 rounded-2xl text-white font-bold text-[20px] inline-flex items-center justify-center mb-3" style={{ background: 'rgb(var(--primary))' }}>S</span>
+          <h1 className="display d-sm text-ink">Sign in</h1>
         </div>
 
         <div className="space-y-3.5">
@@ -83,7 +75,7 @@ export default function Login() {
           </div>
           {expired && !error && <p className="text-[13px] text-warning flex items-center gap-1.5"><Icon name="AlertCircle" size={14} /> Your session expired. Please sign in again.</p>}
           {error && <p className="text-[13px] text-error flex items-center gap-1.5"><Icon name="AlertCircle" size={14} /> {error}</p>}
-          <Button className="w-full" style={{ background: 'rgb(var(--primary))', color: 'rgb(var(--on-primary))' }} disabled={busy} onClick={submit}>{busy ? 'Signing in…' : `Sign in to ${t.name}`}</Button>
+          <Button className="w-full" style={{ background: 'rgb(var(--primary))', color: 'rgb(var(--on-primary))' }} disabled={busy} onClick={submit}>{busy ? 'Signing in…' : 'Sign in'}</Button>
           <button
             type="button"
             className="w-full h-9 rounded-md text-[13px] text-muted font-medium flex items-center justify-center gap-1.5 hover:text-ink"
