@@ -1,6 +1,19 @@
+import re
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+
+PASSWORD_MIN_LENGTH = 8
+
+
+def validate_password_strength(password: str) -> str:
+    if len(password) < PASSWORD_MIN_LENGTH:
+        raise ValueError(f"Password must be at least {PASSWORD_MIN_LENGTH} characters long")
+    if not re.search(r"[A-Za-z]", password):
+        raise ValueError("Password must contain at least one letter")
+    if not re.search(r"\d", password):
+        raise ValueError("Password must contain at least one number")
+    return password
 
 
 class RegisterRequest(BaseModel):
@@ -8,6 +21,11 @@ class RegisterRequest(BaseModel):
     subdomain: str
     email: EmailStr
     password: str
+
+    @field_validator("password")
+    @classmethod
+    def _validate_password(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 class LoginRequest(BaseModel):
@@ -19,6 +37,8 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    tenant_subdomain: str
+    tenant_name: str
 
 
 class RefreshRequest(BaseModel):
@@ -32,6 +52,11 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def _validate_password(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 class UserOut(BaseModel):
@@ -183,6 +208,11 @@ class PasswordChangeRequest(BaseModel):
     current_password: str
     new_password: str
 
+    @field_validator("new_password")
+    @classmethod
+    def _validate_password(cls, v: str) -> str:
+        return validate_password_strength(v)
+
 
 class TenantSettingsOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -236,6 +266,11 @@ class AcceptInviteRequest(BaseModel):
     token: str
     password: str
     name: str | None = None
+
+    @field_validator("password")
+    @classmethod
+    def _validate_password(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 class PlanOut(BaseModel):

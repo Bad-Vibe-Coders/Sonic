@@ -15,6 +15,7 @@ from app.schemas import (
     UserOut,
     UserSettingsUpdate,
 )
+from app.services.auth import revoke_all_refresh_tokens
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -46,6 +47,9 @@ async def change_my_password(
     if not verify_password(body.current_password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Current password is incorrect")
     user.password_hash = hash_password(body.new_password)
+    # Any refresh token issued before this point (including one an attacker
+    # may have stolen) must stop working the moment the password changes.
+    await revoke_all_refresh_tokens(db, user.id)
     await db.commit()
 
 

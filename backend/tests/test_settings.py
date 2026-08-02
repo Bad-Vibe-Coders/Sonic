@@ -44,6 +44,29 @@ async def test_password_change_requires_current_password(client):
     })
     assert login.status_code == 200
 
+
+async def test_password_change_revokes_existing_refresh_tokens(client):
+    register = await client.post("/api/v1/auth/register", json={
+        "tenant_name": "settings-pw-b Inc", "subdomain": "settings-pw-b",
+        "email": "carol@settings-pw-b-corp.example.com", "password": "password123",
+    })
+    assert register.status_code == 201
+    tokens = register.json()
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    changed = await client.put(
+        "/api/v1/settings/me/password", headers=headers,
+        json={"current_password": "password123", "new_password": "newpassword456"},
+    )
+    assert changed.status_code == 204
+
+    # The refresh token issued before the password change -- e.g. one an
+    # attacker had stolen -- must no longer work afterwards.
+    refreshed = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": tokens["refresh_token"],
+    })
+    assert refreshed.status_code == 401
+
     old_login = await client.post("/api/v1/auth/login", json={
         "email": "bob@settings-pw-a-corp.example.com", "password": "password123",
     })

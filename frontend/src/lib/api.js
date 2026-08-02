@@ -232,6 +232,35 @@ export const listBillingPlans = () => request('/billing/plans')
 export const listInvoices = () => request('/billing/invoices')
 export const changePlan = (plan_code) => request('/billing/plan', { method: 'PUT', body: { plan_code } })
 
+// Binary response (a PDF), so this bypasses request() rather than forcing
+// .json() on it. Auth is bearer-token, not cookie-based, so a plain <a href>
+// download link can't carry it -- fetch it, then hand the browser a blob URL.
+export async function downloadInvoice(id) {
+  const res = await fetch(`${API}/billing/invoices/${id}/download`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  })
+  if (!res.ok) {
+    let detail = res.statusText
+    try { detail = (await res.json()).detail || detail } catch { /* non-JSON error body */ }
+    const err = new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
+    err.status = res.status
+    throw err
+  }
+  const disposition = res.headers.get('Content-Disposition') || ''
+  const match = disposition.match(/filename="?([^"]+)"?/)
+  const filename = match ? match[1] : `invoice-${id}.pdf`
+
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 // ---- Onboarding ----
 export const getOnboardingStatus = () => request('/onboarding')
 export const completeOnboardingStep = (step) => request('/onboarding/steps', { method: 'POST', body: { step } })

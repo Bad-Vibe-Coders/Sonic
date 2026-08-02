@@ -1,6 +1,7 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,9 +15,12 @@ from app.models import (
     Role,
     Subscription,
     SubscriptionStatus,
+    Tenant,
     User,
 )
 from app.schemas import BillingSummaryOut, InvoiceOut, PlanChangeRequest, PlanOut
+from app.services.billing import advance_period, close_billing_period
+from app.services.invoicing import render_invoice_pdf
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -24,19 +28,40 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 # no real charges are processed, everything below is our own DB bookkeeping.
 
 
+def _as_aware(value: datetime) -> datetime:
+    """SQLite (used by the test suite) hands back naive datetimes even for
+    timezone-aware columns, and comparing those to an aware now() raises."""
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
 async def _get_or_create_subscription(tenant_id: str, db: AsyncSession) -> Subscription:
     """Tenants that existed before billing shipped (or were seeded without one)
     get lazily enrolled in the default plan on first access."""
     sub = await db.scalar(select(Subscription).where(Subscription.tenant_id == tenant_id))
-    if sub is not None:
+    if sub is None:
+        plan = await db.scalar(select(Plan).where(Plan.code == DEFAULT_PLAN_CODE))
+        if plan is None:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "No default plan configured")
+        sub = Subscription(tenant_id=tenant_id, plan_id=plan.id)
+        db.add(sub)
+        await db.commit()
+        await db.refresh(sub)
         return sub
-    plan = await db.scalar(select(Plan).where(Plan.code == DEFAULT_PLAN_CODE))
-    if plan is None:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "No default plan configured")
-    sub = Subscription(tenant_id=tenant_id, plan_id=plan.id)
-    db.add(sub)
-    await db.commit()
-    await db.refresh(sub)
+
+    # No billing-cycle job exists (SON-46) -- catch up on any period(s) that
+    # elapsed since this subscription was last read. Looping (not just
+    # checking once) means a tenant who hasn't loaded billing in 90 days
+    # gets one invoice per elapsed period instead of one oversized gap.
+    now = datetime.now(UTC)
+    rolled = False
+    while _as_aware(sub.current_period_end) <= now:
+        plan = await db.get(Plan, sub.plan_id)
+        close_billing_period(sub, plan, db)
+        advance_period(sub)
+        rolled = True
+    if rolled:
+        await db.commit()
+        await db.refresh(sub)
     return sub
 
 
@@ -85,6 +110,31 @@ async def list_invoices(
     return list(invoices)
 
 
+@router.get("/invoices/{invoice_id}/download")
+async def download_invoice(
+    invoice_id: str,
+    user: Annotated[User, Depends(require_role(Role.admin, Role.manager))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    invoice = await db.get(Invoice, invoice_id)
+    # Same 404 whether the invoice doesn't exist or belongs to another tenant,
+    # so this can't be used to confirm another tenant's invoice IDs.
+    if invoice is None or invoice.tenant_id != user.tenant_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Invoice not found")
+
+    tenant = await db.get(Tenant, user.tenant_id)
+    subscription = await db.get(Subscription, invoice.subscription_id)
+    plan = await db.get(Plan, subscription.plan_id) if subscription else None
+    plan_name = plan.name if plan else "—"
+
+    pdf_bytes = render_invoice_pdf(invoice, tenant, plan_name)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="invoice-{invoice.id}.pdf"'},
+    )
+
+
 @router.put("/plan", response_model=BillingSummaryOut)
 async def change_plan(
     body: PlanChangeRequest,
@@ -97,6 +147,14 @@ async def change_plan(
     sub = await _get_or_create_subscription(admin.tenant_id, db)
     if sub.plan_id == plan.id:
         raise HTTPException(status.HTTP_409_CONFLICT, "Already on this plan")
+
+    # Bill the partial period just spent on the old plan before switching --
+    # no proration attempted (same stubbed-price model as everywhere else in
+    # this billing system), but a plan change must never leave usage unbilled.
+    old_plan = await db.get(Plan, sub.plan_id)
+    close_billing_period(sub, old_plan, db)
+    advance_period(sub)
+
     sub.plan_id = plan.id
     sub.status = SubscriptionStatus.active
     await db.commit()

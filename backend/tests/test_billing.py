@@ -1,8 +1,10 @@
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import select
 
 from app.core.db import SyncSessionLocal
 from app.core.security import hash_password
-from app.models import Role, User
+from app.models import Invoice, InvoiceStatus, Role, Subscription, User
 from tests.conftest import register_and_login
 from tests.test_agent_conversation_scope import _add_agent
 from tests.test_pipeline import make_wav
@@ -15,6 +17,35 @@ async def _add_manager(tenant_admin_email: str, manager_email: str) -> None:
             tenant_id=admin.tenant_id, email=manager_email,
             password_hash=hash_password("password123"), role=Role.manager,
         ))
+        session.commit()
+
+
+def _add_invoice(tenant_admin_email: str, *, amount_cents: int = 4900) -> str:
+    """No real payment provider is wired up, so tests seed an Invoice row
+    directly rather than driving it through a billing cycle that doesn't exist yet."""
+    with SyncSessionLocal() as session:
+        admin = session.scalar(select(User).where(User.email == tenant_admin_email))
+        sub = session.scalar(select(Subscription).where(Subscription.tenant_id == admin.tenant_id))
+        invoice = Invoice(
+            tenant_id=admin.tenant_id, subscription_id=sub.id,
+            amount_cents=amount_cents, status=InvoiceStatus.paid,
+            period_start=sub.current_period_start, period_end=sub.current_period_end,
+        )
+        session.add(invoice)
+        session.commit()
+        session.refresh(invoice)
+        return invoice.id
+
+
+def _lapse_period(tenant_admin_email: str, *, days_ago: int) -> None:
+    """Simulate a subscription whose current period ended `days_ago` days in
+    the past, so the next billing read has to catch up on rollover."""
+    with SyncSessionLocal() as session:
+        admin = session.scalar(select(User).where(User.email == tenant_admin_email))
+        sub = session.scalar(select(Subscription).where(Subscription.tenant_id == admin.tenant_id))
+        now = datetime.now(UTC)
+        sub.current_period_end = now - timedelta(days=days_ago)
+        sub.current_period_start = sub.current_period_end - timedelta(days=30)
         session.commit()
 
 
@@ -86,6 +117,61 @@ async def test_invoices_empty_for_a_fresh_tenant(client):
     assert resp.json() == []
 
 
+async def test_invoices_still_empty_before_the_period_has_elapsed(client):
+    """Guards against over-eager generation: a subscription mid-period must
+    not produce an invoice just because billing was read."""
+    headers = await register_and_login(client, "billing-h", "h@billing-h.example.com")
+    await client.get("/api/v1/billing/me", headers=headers)
+
+    resp = await client.get("/api/v1/billing/invoices", headers=headers)
+    assert resp.json() == []
+
+
+async def test_reading_billing_after_period_lapses_generates_an_invoice(client):
+    headers = await register_and_login(client, "billing-roll", "a@billing-roll.example.com")
+    await client.get("/api/v1/billing/me", headers=headers)  # creates the subscription
+    _lapse_period("a@billing-roll.example.com", days_ago=1)
+
+    summary = await client.get("/api/v1/billing/me", headers=headers)
+    assert summary.status_code == 200
+    # The lapsed period was closed and a fresh one started in the future.
+    new_end = datetime.fromisoformat(summary.json()["current_period_end"])
+    if new_end.tzinfo is None:
+        new_end = new_end.replace(tzinfo=UTC)
+    assert new_end > datetime.now(UTC)
+
+    invoices = (await client.get("/api/v1/billing/invoices", headers=headers)).json()
+    assert len(invoices) == 1
+    assert invoices[0]["amount_cents"] == 49900  # team plan price
+    assert invoices[0]["status"] == "paid"
+
+
+async def test_multiple_elapsed_periods_each_get_their_own_invoice(client):
+    headers = await register_and_login(client, "billing-multi", "a@billing-multi.example.com")
+    await client.get("/api/v1/billing/me", headers=headers)
+    _lapse_period("a@billing-multi.example.com", days_ago=95)  # ceil(95/30) = 4 periods behind
+
+    await client.get("/api/v1/billing/me", headers=headers)
+
+    invoices = (await client.get("/api/v1/billing/invoices", headers=headers)).json()
+    assert len(invoices) == 4
+
+
+async def test_changing_plan_invoices_the_partial_period_on_the_old_plan(client):
+    headers = await register_and_login(client, "billing-switch", "a@billing-switch.example.com")
+    await client.get("/api/v1/billing/me", headers=headers)  # team plan, price 49900
+
+    resp = await client.put("/api/v1/billing/plan", headers=headers, json={"plan_code": "business"})
+    assert resp.status_code == 200
+
+    invoices = (await client.get("/api/v1/billing/invoices", headers=headers)).json()
+    assert len(invoices) == 1
+    assert invoices[0]["amount_cents"] == 49900  # billed at the OLD (team) price, not business
+
+    summary = (await client.get("/api/v1/billing/me", headers=headers)).json()
+    assert summary["plan"]["code"] == "business"
+
+
 async def test_billing_requires_authentication(client):
     resp = await client.get("/api/v1/billing/me")
     assert resp.status_code == 401
@@ -116,6 +202,51 @@ async def test_manager_can_view_billing_summary_and_invoices(client):
 
     assert (await client.get("/api/v1/billing/me", headers=manager_headers)).status_code == 200
     assert (await client.get("/api/v1/billing/invoices", headers=manager_headers)).status_code == 200
+
+
+async def test_download_invoice_returns_a_pdf(client):
+    headers = await register_and_login(client, "billing-dl", "a@billing-dl.example.com")
+    await client.get("/api/v1/billing/me", headers=headers)  # lazily creates the subscription
+    invoice_id = _add_invoice("a@billing-dl.example.com")
+
+    resp = await client.get(f"/api/v1/billing/invoices/{invoice_id}/download", headers=headers)
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+    assert f'invoice-{invoice_id}.pdf' in resp.headers["content-disposition"]
+    assert resp.content.startswith(b"%PDF")
+
+
+async def test_download_invoice_404_for_unknown_id(client):
+    headers = await register_and_login(client, "billing-dl-404", "a@billing-dl-404.example.com")
+
+    resp = await client.get("/api/v1/billing/invoices/does-not-exist/download", headers=headers)
+    assert resp.status_code == 404
+
+
+async def test_download_invoice_404_for_another_tenants_invoice(client):
+    headers_a = await register_and_login(client, "billing-dl-a", "a@billing-dl-a.example.com")
+    headers_b = await register_and_login(client, "billing-dl-b", "b@billing-dl-b.example.com")
+    await client.get("/api/v1/billing/me", headers=headers_b)
+    invoice_b = _add_invoice("b@billing-dl-b.example.com")
+
+    resp = await client.get(f"/api/v1/billing/invoices/{invoice_b}/download", headers=headers_a)
+    assert resp.status_code == 404
+
+
+async def test_agent_cannot_download_invoice(client):
+    admin_headers = await register_and_login(
+        client, "billing-dl-agent", "admin@billing-dl-agent.example.com")
+    await client.get("/api/v1/billing/me", headers=admin_headers)
+    invoice_id = _add_invoice("admin@billing-dl-agent.example.com")
+    await _add_agent("admin@billing-dl-agent.example.com", "agent@billing-dl-agent.example.com")
+    agent_login = await client.post("/api/v1/auth/login", json={
+        "email": "agent@billing-dl-agent.example.com", "password": "password123",
+    })
+    agent_headers = {"Authorization": f"Bearer {agent_login.json()['access_token']}"}
+
+    resp = await client.get(
+        f"/api/v1/billing/invoices/{invoice_id}/download", headers=agent_headers)
+    assert resp.status_code == 403
 
 
 async def test_tenant_a_cannot_see_or_affect_tenant_b_billing(client):
