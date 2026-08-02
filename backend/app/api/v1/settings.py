@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +18,9 @@ from app.schemas import (
 from app.services.auth import revoke_all_refresh_tokens
 
 router = APIRouter(prefix="/settings", tags=["settings"])
+
+MAX_LOGO_BYTES = 2 * 1024 * 1024
+ALLOWED_LOGO_TYPES = {"image/png", "image/jpeg", "image/svg+xml", "image/webp"}
 
 
 @router.get("/me", response_model=UserOut)
@@ -61,7 +64,7 @@ async def get_tenant_settings(
     tenant = await db.get(Tenant, user.tenant_id)
     if tenant is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Tenant not found")
-    return tenant
+    return TenantSettingsOut.from_tenant(tenant)
 
 
 @router.put("/tenant", response_model=TenantSettingsOut)
@@ -81,4 +84,71 @@ async def update_tenant_settings(
         setattr(tenant, field, value)
     await db.commit()
     await db.refresh(tenant)
-    return tenant
+    return TenantSettingsOut.from_tenant(tenant)
+
+
+@router.put("/tenant/logo", response_model=TenantSettingsOut)
+async def upload_tenant_logo(
+    file: UploadFile,
+    admin: Annotated[User, Depends(require_role(Role.admin))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    if file.content_type not in ALLOWED_LOGO_TYPES:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Unsupported image type: {file.content_type}. Use PNG, JPEG, SVG, or WebP.",
+        )
+    data = await file.read()
+    if not data:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Empty file")
+    if len(data) > MAX_LOGO_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Logo must be under 2MB")
+
+    tenant = await db.get(Tenant, admin.tenant_id)
+    if tenant is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tenant not found")
+
+    from app.services.storage import get_storage
+    key = f"{admin.tenant_id}/branding/logo"
+    try:
+        get_storage().put(key, data)
+    except Exception as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Storage unavailable: {exc}") from exc
+
+    tenant.logo_key = key
+    tenant.logo_content_type = file.content_type
+    await db.commit()
+    await db.refresh(tenant)
+    return TenantSettingsOut.from_tenant(tenant)
+
+
+@router.get("/tenant/logo")
+async def get_tenant_logo(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    tenant = await db.get(Tenant, user.tenant_id)
+    if tenant is None or not tenant.logo_key:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No logo uploaded")
+
+    from app.services.storage import get_storage
+    try:
+        data = get_storage().get(tenant.logo_key)
+    except Exception as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Storage unavailable: {exc}") from exc
+    return Response(content=data, media_type=tenant.logo_content_type or "application/octet-stream")
+
+
+@router.delete("/tenant/logo", response_model=TenantSettingsOut)
+async def remove_tenant_logo(
+    admin: Annotated[User, Depends(require_role(Role.admin))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    tenant = await db.get(Tenant, admin.tenant_id)
+    if tenant is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tenant not found")
+    tenant.logo_key = None
+    tenant.logo_content_type = None
+    await db.commit()
+    await db.refresh(tenant)
+    return TenantSettingsOut.from_tenant(tenant)

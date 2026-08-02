@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { Card, Button, Toggle, StatusChip, Avatar } from '../components/ui'
 import Icon from '../components/Icon'
 import {
   getUserSettings, updateUserSettings, changePassword,
   getTenantSettings, updateTenantSettings,
+  uploadTenantLogo, removeTenantLogo, fetchTenantLogoUrl,
   listTeamMembers, listInvitations, inviteTeamMember, revokeInvitation, updateMemberRole, removeTeamMember,
 } from '../lib/api'
+
+const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
+const MAX_LOGO_BYTES = 2 * 1024 * 1024
 
 const ROLE_LABELS = { admin: 'Admin', manager: 'Manager', agent: 'Agent' }
 
@@ -408,11 +412,125 @@ function TeamTab() {
   )
 }
 
+function BrandingTab() {
+  const { tenantName } = useAuth()
+  const tenantInitials = (tenantName || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+
+  const [tenant, setTenant] = useState(null)
+  const [logoUrl, setLogoUrl] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [status, setStatus] = useState(null)
+  const fileInputRef = useRef(null)
+
+  function load() {
+    getTenantSettings()
+      .then(setTenant)
+      .catch(() => setTenant(false))
+  }
+
+  useEffect(load, [])
+
+  useEffect(() => {
+    if (!tenant || !tenant.has_logo) { setLogoUrl(null); return }
+    let cancelled = false
+    let objectUrl = null
+    fetchTenantLogoUrl().then(url => {
+      if (cancelled) return
+      objectUrl = url
+      setLogoUrl(url)
+    })
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [tenant?.has_logo])
+
+  async function handleFileChosen(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-choosing the same file later
+    if (!file) return
+    setStatus(null)
+    if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
+      setStatus({ type: 'error', message: 'Use PNG, JPEG, SVG, or WebP.' })
+      return
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setStatus({ type: 'error', message: 'Logo must be under 2MB.' })
+      return
+    }
+    setUploading(true)
+    try {
+      const updated = await uploadTenantLogo(file)
+      setTenant(updated)
+      setStatus({ type: 'success', message: 'Logo uploaded.' })
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not upload logo.' })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleRemove() {
+    setUploading(true)
+    setStatus(null)
+    try {
+      const updated = await removeTenantLogo()
+      setTenant(updated)
+      setStatus({ type: 'success', message: 'Logo removed.' })
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not remove logo.' })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  if (tenant === false) return <Card className="p-6 text-[14px] text-error">Couldn&rsquo;t load branding settings.</Card>
+
+  return (
+    <Card className="p-6">
+      <h3 className="text-[16px] font-semibold text-ink mb-1">White-label branding</h3>
+      <p className="text-[13px] text-muted mb-5">Per-tenant brand colour and custom domain aren&rsquo;t stored yet — the palette below is the product default.</p>
+      <div className="grid sm:grid-cols-2 gap-5">
+        <div>
+          <label className="block text-[13px] font-medium text-ink mb-2">Logo</label>
+          <div className="flex items-center gap-3">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Organization logo" className="w-14 h-14 rounded-xl object-cover border border-hairline" />
+            ) : (
+              <span className="w-14 h-14 rounded-xl text-white font-bold text-[18px] flex items-center justify-center" style={{ background: 'rgb(var(--primary))' }}>{tenantInitials}</span>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ALLOWED_LOGO_TYPES.join(',')}
+              className="hidden"
+              onChange={handleFileChosen}
+            />
+            <Button variant="secondary" size="sm" disabled={uploading || tenant === null} onClick={() => fileInputRef.current?.click()}>
+              {uploading ? 'Uploading…' : 'Upload'}
+            </Button>
+            {tenant?.has_logo && (
+              <Button variant="ghost" size="sm" disabled={uploading} onClick={handleRemove}>
+                <Icon name="Trash2" size={14} /> Remove
+              </Button>
+            )}
+          </div>
+          {status && <p className={`text-[12px] mt-2 ${status.type === 'error' ? 'text-error' : 'text-success'}`}>{status.message}</p>}
+        </div>
+        <div>
+          <label className="block text-[13px] font-medium text-ink mb-2">Primary brand color</label>
+          <div className="flex items-center gap-2"><span className="w-10 h-10 rounded-md border border-hairline" style={{ background: 'rgb(var(--primary))' }} /><span className="font-mono text-[13px] text-muted">product default</span></div>
+        </div>
+      </div>
+      <div className="mt-5 rounded-lg border border-hairline p-4 flex items-center justify-between"><span className="text-[14px] text-ink">Custom domain (CNAME)</span><span className="font-mono text-[13px] text-muted">—</span></div>
+    </Card>
+  )
+}
+
 export default function Settings() {
   const [tab, setTab] = useState('account')
   // The real organization from the token, not the demo tenant preset.
   const { tenantName } = useAuth()
-  const tenantInitials = (tenantName || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
     <div className="space-y-6">
@@ -430,25 +548,7 @@ export default function Settings() {
           {tab === 'account' && <AccountTab />}
           {tab === 'organization' && <OrganizationTab />}
 
-          {tab === 'branding' && <>
-            <Card className="p-6">
-              <h3 className="text-[16px] font-semibold text-ink mb-1">White-label branding</h3>
-              {/* The tenant model stores no logo, brand colour or custom domain, so
-                  these read as unset rather than echoing a demo preset (SON-54). */}
-              <p className="text-[13px] text-muted mb-5">Per-tenant branding isn&rsquo;t stored yet — the palette below is the product default.</p>
-              <div className="grid sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-[13px] font-medium text-ink mb-2">Logo</label>
-                  <div className="flex items-center gap-3"><span className="w-14 h-14 rounded-xl text-white font-bold text-[18px] flex items-center justify-center" style={{ background: 'rgb(var(--primary))' }}>{tenantInitials}</span><Button variant="secondary" size="sm" disabled>Upload</Button></div>
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-ink mb-2">Primary brand color</label>
-                  <div className="flex items-center gap-2"><span className="w-10 h-10 rounded-md border border-hairline" style={{ background: 'rgb(var(--primary))' }} /><span className="font-mono text-[13px] text-muted">product default</span></div>
-                </div>
-              </div>
-              <div className="mt-5 rounded-lg border border-hairline p-4 flex items-center justify-between"><span className="text-[14px] text-ink">Custom domain (CNAME)</span><span className="font-mono text-[13px] text-muted">—</span></div>
-            </Card>
-          </>}
+          {tab === 'branding' && <BrandingTab />}
 
           {tab === 'team' && <TeamTab />}
 

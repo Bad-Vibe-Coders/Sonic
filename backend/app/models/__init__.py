@@ -47,6 +47,10 @@ class Tenant(Base):
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
     # Overrides the global SONIC_QA_RULES_PATH default when set (see app/services/qa_rules.py).
     qa_rules_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # Storage key for the uploaded branding logo (SON-51), same storage backend
+    # as conversation audio (see app/services/storage.py). None = no logo uploaded.
+    logo_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    logo_content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
     onboarding_completed_steps: Mapped[list] = mapped_column(JSON, default=list)
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
