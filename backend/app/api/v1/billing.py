@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,9 +14,11 @@ from app.models import (
     Role,
     Subscription,
     SubscriptionStatus,
+    Tenant,
     User,
 )
 from app.schemas import BillingSummaryOut, InvoiceOut, PlanChangeRequest, PlanOut
+from app.services.invoicing import render_invoice_pdf
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -83,6 +85,31 @@ async def list_invoices(
         .order_by(Invoice.issued_at.desc())
     )
     return list(invoices)
+
+
+@router.get("/invoices/{invoice_id}/download")
+async def download_invoice(
+    invoice_id: str,
+    user: Annotated[User, Depends(require_role(Role.admin, Role.manager))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    invoice = await db.get(Invoice, invoice_id)
+    # Same 404 whether the invoice doesn't exist or belongs to another tenant,
+    # so this can't be used to confirm another tenant's invoice IDs.
+    if invoice is None or invoice.tenant_id != user.tenant_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Invoice not found")
+
+    tenant = await db.get(Tenant, user.tenant_id)
+    subscription = await db.get(Subscription, invoice.subscription_id)
+    plan = await db.get(Plan, subscription.plan_id) if subscription else None
+    plan_name = plan.name if plan else "—"
+
+    pdf_bytes = render_invoice_pdf(invoice, tenant, plan_name)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="invoice-{invoice.id}.pdf"'},
+    )
 
 
 @router.put("/plan", response_model=BillingSummaryOut)
