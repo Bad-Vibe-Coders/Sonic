@@ -2,7 +2,7 @@ from sqlalchemy import select
 
 from app.core.db import SyncSessionLocal
 from app.core.security import hash_password
-from app.models import Role, User
+from app.models import Invoice, InvoiceStatus, Role, Subscription, User
 from tests.conftest import register_and_login
 from tests.test_agent_conversation_scope import _add_agent
 from tests.test_pipeline import make_wav
@@ -16,6 +16,23 @@ async def _add_manager(tenant_admin_email: str, manager_email: str) -> None:
             password_hash=hash_password("password123"), role=Role.manager,
         ))
         session.commit()
+
+
+def _add_invoice(tenant_admin_email: str, *, amount_cents: int = 4900) -> str:
+    """No real payment provider is wired up, so tests seed an Invoice row
+    directly rather than driving it through a billing cycle that doesn't exist yet."""
+    with SyncSessionLocal() as session:
+        admin = session.scalar(select(User).where(User.email == tenant_admin_email))
+        sub = session.scalar(select(Subscription).where(Subscription.tenant_id == admin.tenant_id))
+        invoice = Invoice(
+            tenant_id=admin.tenant_id, subscription_id=sub.id,
+            amount_cents=amount_cents, status=InvoiceStatus.paid,
+            period_start=sub.current_period_start, period_end=sub.current_period_end,
+        )
+        session.add(invoice)
+        session.commit()
+        session.refresh(invoice)
+        return invoice.id
 
 
 async def test_new_tenant_is_lazily_enrolled_in_default_plan(client):
@@ -116,6 +133,51 @@ async def test_manager_can_view_billing_summary_and_invoices(client):
 
     assert (await client.get("/api/v1/billing/me", headers=manager_headers)).status_code == 200
     assert (await client.get("/api/v1/billing/invoices", headers=manager_headers)).status_code == 200
+
+
+async def test_download_invoice_returns_a_pdf(client):
+    headers = await register_and_login(client, "billing-dl", "a@billing-dl.example.com")
+    await client.get("/api/v1/billing/me", headers=headers)  # lazily creates the subscription
+    invoice_id = _add_invoice("a@billing-dl.example.com")
+
+    resp = await client.get(f"/api/v1/billing/invoices/{invoice_id}/download", headers=headers)
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+    assert f'invoice-{invoice_id}.pdf' in resp.headers["content-disposition"]
+    assert resp.content.startswith(b"%PDF")
+
+
+async def test_download_invoice_404_for_unknown_id(client):
+    headers = await register_and_login(client, "billing-dl-404", "a@billing-dl-404.example.com")
+
+    resp = await client.get("/api/v1/billing/invoices/does-not-exist/download", headers=headers)
+    assert resp.status_code == 404
+
+
+async def test_download_invoice_404_for_another_tenants_invoice(client):
+    headers_a = await register_and_login(client, "billing-dl-a", "a@billing-dl-a.example.com")
+    headers_b = await register_and_login(client, "billing-dl-b", "b@billing-dl-b.example.com")
+    await client.get("/api/v1/billing/me", headers=headers_b)
+    invoice_b = _add_invoice("b@billing-dl-b.example.com")
+
+    resp = await client.get(f"/api/v1/billing/invoices/{invoice_b}/download", headers=headers_a)
+    assert resp.status_code == 404
+
+
+async def test_agent_cannot_download_invoice(client):
+    admin_headers = await register_and_login(
+        client, "billing-dl-agent", "admin@billing-dl-agent.example.com")
+    await client.get("/api/v1/billing/me", headers=admin_headers)
+    invoice_id = _add_invoice("admin@billing-dl-agent.example.com")
+    await _add_agent("admin@billing-dl-agent.example.com", "agent@billing-dl-agent.example.com")
+    agent_login = await client.post("/api/v1/auth/login", json={
+        "email": "agent@billing-dl-agent.example.com", "password": "password123",
+    })
+    agent_headers = {"Authorization": f"Bearer {agent_login.json()['access_token']}"}
+
+    resp = await client.get(
+        f"/api/v1/billing/invoices/{invoice_id}/download", headers=agent_headers)
+    assert resp.status_code == 403
 
 
 async def test_tenant_a_cannot_see_or_affect_tenant_b_billing(client):
