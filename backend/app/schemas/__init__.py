@@ -181,6 +181,28 @@ class PlatformOverview(BaseModel):
     total_conversations: int
 
 
+class PlatformRevenueByPlan(BaseModel):
+    plan_code: str
+    plan_name: str
+    active_subscriptions: int
+    mrr_cents: int
+
+
+class PlatformTenantBillingOut(BaseModel):
+    tenant_id: str
+    tenant_name: str
+    plan_name: str | None = None  # None = no subscription yet (never billed)
+    latest_invoice_amount_cents: int | None = None
+    latest_invoice_status: str | None = None
+
+
+class PlatformBillingSummary(BaseModel):
+    mrr_cents: int
+    overage_tenant_count: int
+    revenue_by_plan: list[PlatformRevenueByPlan]
+    tenants: list[PlatformTenantBillingOut]
+
+
 class AgentStat(BaseModel):
     user_id: str
     email: str
