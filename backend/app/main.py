@@ -9,6 +9,7 @@ from app.api.v1.ws import router as ws_router
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.core.rate_limit import limiter
+from app.core.security_headers import SecurityHeadersMiddleware
 
 setup_logging()
 settings = get_settings()
@@ -30,6 +31,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(SecurityHeadersMiddleware, hsts=settings.env == "prod")
 
 app.include_router(api_router)
 app.include_router(ws_router)
