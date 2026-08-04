@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
-import { Card, Button, Toggle, StatusChip, Avatar } from '../components/ui'
+import { Card, Button, Toggle, StatusChip, Avatar, Badge } from '../components/ui'
 import Icon from '../components/Icon'
 import {
   getUserSettings, updateUserSettings, changePassword,
@@ -721,10 +721,20 @@ export default function Settings() {
 
           {tab === 'team' && <TeamTab />}
 
-          {tab === 'integrations' && <div className="grid sm:grid-cols-2 gap-4">
-            {[['Twilio', 'Telephony', true], ['Genesys', 'Contact center', true], ['Salesforce', 'CRM', false], ['Slack', 'Alerts', true], ['Snowflake', 'Data warehouse', false], ['Zendesk', 'Ticketing', false]].map(([n, d, on]) => (
-              <Card key={n} className="p-5 flex items-center gap-3"><span className="w-10 h-10 rounded-md bg-surface-card flex items-center justify-center text-ink"><Icon name="Plug" size={18} /></span><span className="flex-1"><span className="block text-[14px] font-semibold text-ink">{n}</span><span className="block text-[12px] text-muted">{d}</span></span><Toggle on={on} onChange={() => {}} /></Card>
-            ))}
+          {tab === 'integrations' && <div className="space-y-4">
+            <p className="text-[13px] text-muted">Third-party connections aren&rsquo;t available yet — this is a preview of what&rsquo;s coming.</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[['Twilio', 'Telephony'], ['Genesys', 'Contact center'], ['Salesforce', 'CRM'], ['Slack', 'Alerts'], ['Snowflake', 'Data warehouse'], ['Zendesk', 'Ticketing']].map(([n, d]) => (
+                <Card key={n} className="p-5 flex items-center gap-3 opacity-70">
+                  <span className="w-10 h-10 rounded-md bg-surface-card flex items-center justify-center text-ink"><Icon name="Plug" size={18} /></span>
+                  <span className="flex-1">
+                    <span className="block text-[14px] font-semibold text-ink">{n}</span>
+                    <span className="block text-[12px] text-muted">{d}</span>
+                  </span>
+                  <Badge>Coming soon</Badge>
+                </Card>
+              ))}
+            </div>
           </div>}
 
           {tab === 'api' && <ApiKeysTab />}
