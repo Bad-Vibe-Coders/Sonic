@@ -53,6 +53,12 @@ class Tenant(Base):
     logo_content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
     onboarding_completed_steps: Mapped[list] = mapped_column(JSON, default=list)
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Data & retention tab (SON-50). retention_days follows the UI's fixed
+    # option set (30/90/365); None means "Forever".
+    store_call_audio: Mapped[bool] = mapped_column(default=True)
+    pii_redaction: Mapped[bool] = mapped_column(default=True)
+    allow_model_training: Mapped[bool] = mapped_column(default=False)
+    retention_days: Mapped[int | None] = mapped_column(Integer, default=90, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     users: Mapped[list["User"]] = relationship(back_populates="tenant")

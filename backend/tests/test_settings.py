@@ -221,6 +221,68 @@ async def test_tenant_a_cannot_see_tenant_bs_logo(client):
     assert a_logo.status_code == 404
 
 
+async def test_tenant_data_settings_defaults_and_round_trip(client):
+    headers = await register_and_login(client, "data-retention-a", "admin@data-retention-a.example.com")
+
+    defaults = await client.get("/api/v1/settings/tenant/data", headers=headers)
+    assert defaults.status_code == 200
+    body = defaults.json()
+    assert body == {
+        "store_call_audio": True,
+        "pii_redaction": True,
+        "allow_model_training": False,
+        "retention_days": 90,
+    }
+
+    updated = await client.put(
+        "/api/v1/settings/tenant/data", headers=headers,
+        json={"allow_model_training": True, "retention_days": "forever"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["allow_model_training"] is True
+    assert updated.json()["retention_days"] == "forever"
+    # Untouched fields keep their prior values.
+    assert updated.json()["store_call_audio"] is True
+
+    reloaded = await client.get("/api/v1/settings/tenant/data", headers=headers)
+    assert reloaded.json()["retention_days"] == "forever"
+
+
+async def test_tenant_data_settings_rejects_invalid_retention_days(client):
+    headers = await register_and_login(client, "data-retention-b", "admin@data-retention-b.example.com")
+
+    resp = await client.put(
+        "/api/v1/settings/tenant/data", headers=headers,
+        json={"retention_days": 45},
+    )
+    assert resp.status_code == 422
+
+
+async def test_non_admin_cannot_update_tenant_data_settings(client):
+    headers = await register_and_login(client, "data-retention-c", "carol@data-retention-c.example.com")
+    with SyncSessionLocal() as session:
+        user = session.scalar(select(User).where(User.email == "carol@data-retention-c.example.com"))
+        user.role = Role.agent
+        session.commit()
+
+    resp = await client.put(
+        "/api/v1/settings/tenant/data", headers=headers, json={"pii_redaction": False},
+    )
+    assert resp.status_code == 403
+
+
+async def test_tenant_data_settings_scoped_to_caller_tenant(client):
+    headers_a = await register_and_login(client, "data-retention-iso-a", "a@data-retention-iso-a.example.com")
+    headers_b = await register_and_login(client, "data-retention-iso-b", "b@data-retention-iso-b.example.com")
+
+    await client.put(
+        "/api/v1/settings/tenant/data", headers=headers_a, json={"retention_days": 365},
+    )
+
+    tenant_b_view = await client.get("/api/v1/settings/tenant/data", headers=headers_b)
+    assert tenant_b_view.json()["retention_days"] == 90
+
+
 async def test_non_admin_cannot_update_tenant_settings(client):
     headers = await register_and_login(client, "settings-role-a", "carol@settings-role-a-corp.example.com")
 

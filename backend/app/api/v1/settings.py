@@ -10,6 +10,8 @@ from app.core.security import hash_password, verify_password
 from app.models import Role, Tenant, User
 from app.schemas import (
     PasswordChangeRequest,
+    TenantDataSettingsOut,
+    TenantDataSettingsUpdate,
     TenantSettingsOut,
     TenantSettingsUpdate,
     UserOut,
@@ -85,6 +87,36 @@ async def update_tenant_settings(
     await db.commit()
     await db.refresh(tenant)
     return TenantSettingsOut.from_tenant(tenant)
+
+
+@router.get("/tenant/data", response_model=TenantDataSettingsOut)
+async def get_tenant_data_settings(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    tenant = await db.get(Tenant, user.tenant_id)
+    if tenant is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tenant not found")
+    return TenantDataSettingsOut.from_tenant(tenant)
+
+
+@router.put("/tenant/data", response_model=TenantDataSettingsOut)
+async def update_tenant_data_settings(
+    body: TenantDataSettingsUpdate,
+    admin: Annotated[User, Depends(require_role(Role.admin))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    tenant = await db.get(Tenant, admin.tenant_id)
+    if tenant is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tenant not found")
+    updates = body.model_dump(exclude_unset=True)
+    if "retention_days" in updates:
+        updates["retention_days"] = None if updates["retention_days"] == "forever" else updates["retention_days"]
+    for field, value in updates.items():
+        setattr(tenant, field, value)
+    await db.commit()
+    await db.refresh(tenant)
+    return TenantDataSettingsOut.from_tenant(tenant)
 
 
 @router.put("/tenant/logo", response_model=TenantSettingsOut)

@@ -212,6 +212,8 @@ export const changePassword = (current_password, new_password) =>
   request('/settings/me/password', { method: 'PUT', body: { current_password, new_password } })
 export const getTenantSettings = () => request('/settings/tenant')
 export const updateTenantSettings = (body) => request('/settings/tenant', { method: 'PUT', body })
+export const getTenantDataSettings = () => request('/settings/tenant/data')
+export const updateTenantDataSettings = (body) => request('/settings/tenant/data', { method: 'PUT', body })
 
 export function uploadTenantLogo(file) {
   const form = new FormData()

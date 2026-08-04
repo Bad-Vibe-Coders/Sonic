@@ -5,6 +5,7 @@ import Icon from '../components/Icon'
 import {
   getUserSettings, updateUserSettings, changePassword,
   getTenantSettings, updateTenantSettings,
+  getTenantDataSettings, updateTenantDataSettings,
   uploadTenantLogo, removeTenantLogo, fetchTenantLogoUrl,
   listTeamMembers, listInvitations, inviteTeamMember, revokeInvitation, updateMemberRole, removeTeamMember,
 } from '../lib/api'
@@ -527,6 +528,79 @@ function BrandingTab() {
   )
 }
 
+const RETENTION_OPTIONS = [
+  { value: 30, label: '30 days' },
+  { value: 90, label: '90 days' },
+  { value: 365, label: '1 year' },
+  { value: 'forever', label: 'Forever' },
+]
+
+function DataRetentionTab() {
+  const [settings, setSettings] = useState(null)
+  const [status, setStatus] = useState(null)
+  const [busyField, setBusyField] = useState(null)
+
+  function load() {
+    getTenantDataSettings().then(setSettings).catch(() => setSettings(false))
+  }
+
+  useEffect(load, [])
+
+  async function save(patch) {
+    setStatus(null)
+    setBusyField(Object.keys(patch)[0])
+    const previous = settings
+    setSettings(s => ({ ...s, ...patch }))
+    try {
+      const updated = await updateTenantDataSettings(patch)
+      setSettings(updated)
+    } catch (err) {
+      setSettings(previous)
+      setStatus({ type: 'error', message: err.message || 'Could not save data & retention settings.' })
+    } finally {
+      setBusyField(null)
+    }
+  }
+
+  if (settings === null) return <Card className="p-6 text-[14px] text-muted">Loading…</Card>
+  if (settings === false) return <Card className="p-6 text-[14px] text-error">Couldn&rsquo;t load data & retention settings.</Card>
+
+  const toggles = [
+    { key: 'store_call_audio', label: 'Store call audio', desc: 'Keep raw recordings after processing' },
+    { key: 'pii_redaction', label: 'PII redaction', desc: 'Mask sensitive data in transcripts' },
+    { key: 'allow_model_training', label: 'Allow model training', desc: 'Use anonymized data to improve models' },
+  ]
+
+  return (
+    <Card className="p-6">
+      <h3 className="text-[16px] font-semibold text-ink mb-4">Data & retention</h3>
+      <div className="space-y-4">
+        {toggles.map(({ key, label, desc }) => (
+          <div key={key} className="flex items-center justify-between">
+            <span><span className="block text-[14px] font-medium text-ink">{label}</span><span className="block text-[12px] text-muted">{desc}</span></span>
+            <Toggle on={settings[key]} disabled={busyField === key} onChange={v => save({ [key]: v })} />
+          </div>
+        ))}
+        <div className="flex items-center justify-between pt-2 border-t border-hairline">
+          <span className="text-[14px] text-ink">Retention period</span>
+          <select
+            className="h-9 rounded-md border border-hairline bg-surface px-2 text-[13px] text-ink disabled:opacity-50"
+            value={settings.retention_days}
+            disabled={busyField === 'retention_days'}
+            onChange={e => {
+              const raw = e.target.value
+              save({ retention_days: raw === 'forever' ? 'forever' : Number(raw) })
+            }}
+          >
+            {RETENTION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <Banner status={status} />
+      </div>
+    </Card>
+  )
+}
+
 export default function Settings() {
   const [tab, setTab] = useState('account')
   // The real organization from the token, not the demo tenant preset.
@@ -567,15 +641,7 @@ export default function Settings() {
             </div>
           </Card>}
 
-          {tab === 'data' && <Card className="p-6">
-            <h3 className="text-[16px] font-semibold text-ink mb-4">Data & retention</h3>
-            <div className="space-y-4">
-              {[['Store call audio', 'Keep raw recordings after processing', true], ['PII redaction', 'Mask sensitive data in transcripts', true], ['Allow model training', 'Use anonymized data to improve models', false]].map(([t1, d, on]) => (
-                <div key={t1} className="flex items-center justify-between"><span><span className="block text-[14px] font-medium text-ink">{t1}</span><span className="block text-[12px] text-muted">{d}</span></span><Toggle on={on} onChange={() => {}} /></div>
-              ))}
-              <div className="flex items-center justify-between pt-2 border-t border-hairline"><span className="text-[14px] text-ink">Retention period</span><select className="h-9 rounded-md border border-hairline bg-surface px-2 text-[13px] text-ink"><option>30 days</option><option>90 days</option><option>1 year</option><option>Forever</option></select></div>
-            </div>
-          </Card>}
+          {tab === 'data' && <DataRetentionTab />}
         </div>
       </div>
     </div>
