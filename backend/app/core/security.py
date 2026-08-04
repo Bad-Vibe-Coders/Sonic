@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import os
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -25,6 +26,25 @@ def verify_password(password: str, stored: str) -> bool:
         return hmac.compare_digest(digest.hex(), digest_hex)
     except (ValueError, TypeError):
         return False
+
+
+# Same PBKDF2 scheme as passwords (hash_password/verify_password above), reused
+# so a leaked api_keys row is exactly as hard to invert as a leaked users row.
+def hash_api_key(key: str) -> str:
+    return hash_password(key)
+
+
+def verify_api_key(key: str, stored_hash: str) -> bool:
+    return verify_password(key, stored_hash)
+
+
+def generate_api_key() -> tuple[str, str]:
+    """Returns (full_key, display_prefix). The full key is shown to the
+    caller exactly once and never stored -- only its hash is kept."""
+    secret = secrets.token_urlsafe(32)
+    full_key = f"sk_live_{secret}"
+    prefix = f"sk_live_{secret[:6]}"
+    return full_key, prefix
 
 
 def create_token(

@@ -237,6 +237,57 @@ class TenantSettingsUpdate(BaseModel):
     qa_rules_path: str | None = None
 
 
+RETENTION_DAYS_CHOICES = (30, 90, 365, "forever")
+
+
+class TenantDataSettingsOut(BaseModel):
+    store_call_audio: bool
+    pii_redaction: bool
+    allow_model_training: bool
+    retention_days: int | str  # "forever" when the tenant has no cap
+
+    @classmethod
+    def from_tenant(cls, tenant) -> "TenantDataSettingsOut":
+        return cls(
+            store_call_audio=tenant.store_call_audio,
+            pii_redaction=tenant.pii_redaction,
+            allow_model_training=tenant.allow_model_training,
+            retention_days=tenant.retention_days if tenant.retention_days is not None else "forever",
+        )
+
+
+class TenantDataSettingsUpdate(BaseModel):
+    store_call_audio: bool | None = None
+    pii_redaction: bool | None = None
+    allow_model_training: bool | None = None
+    retention_days: int | str | None = None  # "forever" or one of the fixed day counts
+
+    @field_validator("retention_days")
+    @classmethod
+    def _validate_retention_days(cls, v):
+        if v is not None and v not in RETENTION_DAYS_CHOICES:
+            raise ValueError("retention_days must be one of 30, 90, 365, or 'forever'")
+        return v
+
+
+class ApiKeyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    key_prefix: str
+    created_at: datetime
+
+
+class ApiKeyCreateOut(ApiKeyOut):
+    # Only returned once, straight after creation -- the full key is never
+    # persisted, so this is the only chance the admin gets to see or copy it.
+    key: str
+
+
+class ApiKeyCreateRequest(BaseModel):
+    name: str
+
+
 class TeamMemberOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str

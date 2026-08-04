@@ -53,6 +53,12 @@ class Tenant(Base):
     logo_content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
     onboarding_completed_steps: Mapped[list] = mapped_column(JSON, default=list)
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Data & retention tab (SON-50). retention_days follows the UI's fixed
+    # option set (30/90/365); None means "Forever".
+    store_call_audio: Mapped[bool] = mapped_column(default=True)
+    pii_redaction: Mapped[bool] = mapped_column(default=True)
+    allow_model_training: Mapped[bool] = mapped_column(default=False)
+    retention_days: Mapped[int | None] = mapped_column(Integer, default=90, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     users: Mapped[list["User"]] = relationship(back_populates="tenant")
@@ -318,6 +324,25 @@ class RefreshToken(Base):
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ApiKey(Base):
+    """A tenant-issued API key (SON-50). The full key is shown to the admin
+    exactly once, at creation -- only its PBKDF2 hash and a short display
+    prefix (e.g. "sk_live_ab12") are persisted, same pattern as password
+    storage. Not yet wired into request authentication; that's a separate
+    ticket. Revocation is soft (revoked_at set) so past issuance is auditable."""
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    key_hash: Mapped[str] = mapped_column(String(255))
+    key_prefix: Mapped[str] = mapped_column(String(24))
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class PlatformAdmin(Base):

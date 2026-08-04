@@ -99,8 +99,8 @@ export function Reveal({ children, delay = 0, className = '' }) {
 }
 
 /* ---------- Toggle ---------- */
-export function Toggle({ on, onChange }) {
-  return <button onClick={() => onChange(!on)} className={`w-10 h-6 rounded-full p-0.5 transition ${on ? 'ai-gradient' : 'bg-surface-strong'}`}>
+export function Toggle({ on, onChange, disabled = false }) {
+  return <button onClick={() => onChange(!on)} disabled={disabled} className={`w-10 h-6 rounded-full p-0.5 transition disabled:opacity-50 ${on ? 'ai-gradient' : 'bg-surface-strong'}`}>
     <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : ''}`} />
   </button>
 }

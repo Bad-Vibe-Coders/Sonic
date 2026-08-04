@@ -212,6 +212,12 @@ export const changePassword = (current_password, new_password) =>
   request('/settings/me/password', { method: 'PUT', body: { current_password, new_password } })
 export const getTenantSettings = () => request('/settings/tenant')
 export const updateTenantSettings = (body) => request('/settings/tenant', { method: 'PUT', body })
+export const getTenantDataSettings = () => request('/settings/tenant/data')
+export const updateTenantDataSettings = (body) => request('/settings/tenant/data', { method: 'PUT', body })
+
+export const listApiKeys = () => request('/settings/api-keys')
+export const createApiKey = (name) => request('/settings/api-keys', { method: 'POST', body: { name } })
+export const revokeApiKey = (id) => request(`/settings/api-keys/${id}`, { method: 'DELETE' })
 
 export function uploadTenantLogo(file) {
   const form = new FormData()

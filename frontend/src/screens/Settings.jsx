@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
-import { Card, Button, Toggle, StatusChip, Avatar } from '../components/ui'
+import { Card, Button, Toggle, StatusChip, Avatar, Badge } from '../components/ui'
 import Icon from '../components/Icon'
 import {
   getUserSettings, updateUserSettings, changePassword,
   getTenantSettings, updateTenantSettings,
+  getTenantDataSettings, updateTenantDataSettings,
+  listApiKeys, createApiKey, revokeApiKey,
   uploadTenantLogo, removeTenantLogo, fetchTenantLogoUrl,
   listTeamMembers, listInvitations, inviteTeamMember, revokeInvitation, updateMemberRole, removeTeamMember,
 } from '../lib/api'
@@ -527,6 +529,173 @@ function BrandingTab() {
   )
 }
 
+function ApiKeysTab() {
+  const [keys, setKeys] = useState(null)
+  const [name, setName] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [revokingId, setRevokingId] = useState(null)
+  const [status, setStatus] = useState(null)
+  const [revealedKey, setRevealedKey] = useState(null)
+
+  function load() {
+    listApiKeys().then(setKeys).catch(() => setKeys(false))
+  }
+
+  useEffect(load, [])
+
+  async function generate() {
+    setStatus(null)
+    setRevealedKey(null)
+    setGenerating(true)
+    try {
+      const created = await createApiKey(name.trim() || 'Unnamed key')
+      setName('')
+      setRevealedKey(created)
+      load()
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not generate API key.' })
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function revoke(id) {
+    setRevokingId(id)
+    setStatus(null)
+    try {
+      await revokeApiKey(id)
+      load()
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not revoke API key.' })
+    } finally {
+      setRevokingId(null)
+    }
+  }
+
+  if (keys === null) return <Card className="p-6 text-[14px] text-muted">Loading…</Card>
+  if (keys === false) return <Card className="p-6 text-[14px] text-error">Couldn&rsquo;t load API keys.</Card>
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <h3 className="text-[16px] font-semibold text-ink">API keys</h3>
+        <div className="flex items-center gap-2">
+          <input
+            className="h-9 rounded-md border border-hairline bg-surface px-3 text-[13px] text-ink"
+            placeholder="Key name (e.g. Production)"
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
+          <Button size="sm" disabled={generating} onClick={generate}>
+            <Icon name="Plus" size={15} /> {generating ? 'Generating…' : 'Generate'}
+          </Button>
+        </div>
+      </div>
+
+      {revealedKey && (
+        <div className="mb-4 rounded-md border border-hairline p-3 space-y-1.5">
+          <p className="text-[12px] text-muted">Copy this key now — you won&rsquo;t be able to see it again.</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 font-mono text-[13px] text-body truncate">{revealedKey.key}</code>
+            <Button variant="ghost" size="sm" onClick={() => navigator.clipboard.writeText(revealedKey.key)}>
+              <Icon name="Copy" size={14} /> Copy
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Banner status={status} />
+
+      <div className="space-y-3 mt-3">
+        {keys.map(k => (
+          <div key={k.id} className="flex items-center gap-3 p-3 rounded-lg border border-hairline">
+            <span className="text-[14px] font-medium text-ink w-32 truncate">{k.name}</span>
+            <code className="flex-1 font-mono text-[13px] text-body">{k.key_prefix}••••••••</code>
+            <span className="text-[12px] text-muted">{new Date(k.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+            <Button variant="ghost" size="sm" disabled={revokingId === k.id} onClick={() => revoke(k.id)}>
+              <Icon name="Trash2" size={15} />
+            </Button>
+          </div>
+        ))}
+        {keys.length === 0 && <p className="text-[13px] text-muted py-3">No API keys yet.</p>}
+      </div>
+    </Card>
+  )
+}
+
+const RETENTION_OPTIONS = [
+  { value: 30, label: '30 days' },
+  { value: 90, label: '90 days' },
+  { value: 365, label: '1 year' },
+  { value: 'forever', label: 'Forever' },
+]
+
+function DataRetentionTab() {
+  const [settings, setSettings] = useState(null)
+  const [status, setStatus] = useState(null)
+  const [busyField, setBusyField] = useState(null)
+
+  function load() {
+    getTenantDataSettings().then(setSettings).catch(() => setSettings(false))
+  }
+
+  useEffect(load, [])
+
+  async function save(patch) {
+    setStatus(null)
+    setBusyField(Object.keys(patch)[0])
+    const previous = settings
+    setSettings(s => ({ ...s, ...patch }))
+    try {
+      const updated = await updateTenantDataSettings(patch)
+      setSettings(updated)
+    } catch (err) {
+      setSettings(previous)
+      setStatus({ type: 'error', message: err.message || 'Could not save data & retention settings.' })
+    } finally {
+      setBusyField(null)
+    }
+  }
+
+  if (settings === null) return <Card className="p-6 text-[14px] text-muted">Loading…</Card>
+  if (settings === false) return <Card className="p-6 text-[14px] text-error">Couldn&rsquo;t load data & retention settings.</Card>
+
+  const toggles = [
+    { key: 'store_call_audio', label: 'Store call audio', desc: 'Keep raw recordings after processing' },
+    { key: 'pii_redaction', label: 'PII redaction', desc: 'Mask sensitive data in transcripts' },
+    { key: 'allow_model_training', label: 'Allow model training', desc: 'Use anonymized data to improve models' },
+  ]
+
+  return (
+    <Card className="p-6">
+      <h3 className="text-[16px] font-semibold text-ink mb-4">Data & retention</h3>
+      <div className="space-y-4">
+        {toggles.map(({ key, label, desc }) => (
+          <div key={key} className="flex items-center justify-between">
+            <span><span className="block text-[14px] font-medium text-ink">{label}</span><span className="block text-[12px] text-muted">{desc}</span></span>
+            <Toggle on={settings[key]} disabled={busyField === key} onChange={v => save({ [key]: v })} />
+          </div>
+        ))}
+        <div className="flex items-center justify-between pt-2 border-t border-hairline">
+          <span className="text-[14px] text-ink">Retention period</span>
+          <select
+            className="h-9 rounded-md border border-hairline bg-surface px-2 text-[13px] text-ink disabled:opacity-50"
+            value={settings.retention_days}
+            disabled={busyField === 'retention_days'}
+            onChange={e => {
+              const raw = e.target.value
+              save({ retention_days: raw === 'forever' ? 'forever' : Number(raw) })
+            }}
+          >
+            {RETENTION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <Banner status={status} />
+      </div>
+    </Card>
+  )
+}
+
 export default function Settings() {
   const [tab, setTab] = useState('account')
   // The real organization from the token, not the demo tenant preset.
@@ -552,30 +721,25 @@ export default function Settings() {
 
           {tab === 'team' && <TeamTab />}
 
-          {tab === 'integrations' && <div className="grid sm:grid-cols-2 gap-4">
-            {[['Twilio', 'Telephony', true], ['Genesys', 'Contact center', true], ['Salesforce', 'CRM', false], ['Slack', 'Alerts', true], ['Snowflake', 'Data warehouse', false], ['Zendesk', 'Ticketing', false]].map(([n, d, on]) => (
-              <Card key={n} className="p-5 flex items-center gap-3"><span className="w-10 h-10 rounded-md bg-surface-card flex items-center justify-center text-ink"><Icon name="Plug" size={18} /></span><span className="flex-1"><span className="block text-[14px] font-semibold text-ink">{n}</span><span className="block text-[12px] text-muted">{d}</span></span><Toggle on={on} onChange={() => {}} /></Card>
-            ))}
+          {tab === 'integrations' && <div className="space-y-4">
+            <p className="text-[13px] text-muted">Third-party connections aren&rsquo;t available yet — this is a preview of what&rsquo;s coming.</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[['Twilio', 'Telephony'], ['Genesys', 'Contact center'], ['Salesforce', 'CRM'], ['Slack', 'Alerts'], ['Snowflake', 'Data warehouse'], ['Zendesk', 'Ticketing']].map(([n, d]) => (
+                <Card key={n} className="p-5 flex items-center gap-3 opacity-70">
+                  <span className="w-10 h-10 rounded-md bg-surface-card flex items-center justify-center text-ink"><Icon name="Plug" size={18} /></span>
+                  <span className="flex-1">
+                    <span className="block text-[14px] font-semibold text-ink">{n}</span>
+                    <span className="block text-[12px] text-muted">{d}</span>
+                  </span>
+                  <Badge>Coming soon</Badge>
+                </Card>
+              ))}
+            </div>
           </div>}
 
-          {tab === 'api' && <Card className="p-6">
-            <div className="flex items-center justify-between mb-4"><h3 className="text-[16px] font-semibold text-ink">API keys</h3><Button size="sm"><Icon name="Plus" size={15} /> Generate</Button></div>
-            <div className="space-y-3">
-              {[['Production', 'sk_live_••••••••4f2a', 'Jun 2026'], ['Staging', 'sk_test_••••••••9c01', 'May 2026']].map(([n, k, d]) => (
-                <div key={n} className="flex items-center gap-3 p-3 rounded-lg border border-hairline"><span className="text-[14px] font-medium text-ink w-24">{n}</span><code className="flex-1 font-mono text-[13px] text-body">{k}</code><span className="text-[12px] text-muted">{d}</span><Button variant="ghost" size="sm"><Icon name="Copy" size={15} /></Button></div>
-              ))}
-            </div>
-          </Card>}
+          {tab === 'api' && <ApiKeysTab />}
 
-          {tab === 'data' && <Card className="p-6">
-            <h3 className="text-[16px] font-semibold text-ink mb-4">Data & retention</h3>
-            <div className="space-y-4">
-              {[['Store call audio', 'Keep raw recordings after processing', true], ['PII redaction', 'Mask sensitive data in transcripts', true], ['Allow model training', 'Use anonymized data to improve models', false]].map(([t1, d, on]) => (
-                <div key={t1} className="flex items-center justify-between"><span><span className="block text-[14px] font-medium text-ink">{t1}</span><span className="block text-[12px] text-muted">{d}</span></span><Toggle on={on} onChange={() => {}} /></div>
-              ))}
-              <div className="flex items-center justify-between pt-2 border-t border-hairline"><span className="text-[14px] text-ink">Retention period</span><select className="h-9 rounded-md border border-hairline bg-surface px-2 text-[13px] text-ink"><option>30 days</option><option>90 days</option><option>1 year</option><option>Forever</option></select></div>
-            </div>
-          </Card>}
+          {tab === 'data' && <DataRetentionTab />}
         </div>
       </div>
     </div>
