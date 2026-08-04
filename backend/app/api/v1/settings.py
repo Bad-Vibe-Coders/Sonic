@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
@@ -6,9 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_role
 from app.core.db import get_db
-from app.core.security import hash_password, verify_password
-from app.models import Role, Tenant, User
+from app.core.security import generate_api_key, hash_password, verify_password
+from app.models import ApiKey, Role, Tenant, User
 from app.schemas import (
+    ApiKeyCreateOut,
+    ApiKeyCreateRequest,
+    ApiKeyOut,
     PasswordChangeRequest,
     TenantDataSettingsOut,
     TenantDataSettingsUpdate,
@@ -117,6 +121,55 @@ async def update_tenant_data_settings(
     await db.commit()
     await db.refresh(tenant)
     return TenantDataSettingsOut.from_tenant(tenant)
+
+
+@router.get("/api-keys", response_model=list[ApiKeyOut])
+async def list_api_keys(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    rows = await db.scalars(
+        select(ApiKey)
+        .where(ApiKey.tenant_id == user.tenant_id, ApiKey.revoked_at.is_(None))
+        .order_by(ApiKey.created_at.desc())
+    )
+    return rows.all()
+
+
+@router.post("/api-keys", response_model=ApiKeyCreateOut, status_code=201)
+async def create_api_key(
+    body: ApiKeyCreateRequest,
+    admin: Annotated[User, Depends(require_role(Role.admin))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Key name is required")
+    full_key, prefix = generate_api_key()
+    key = ApiKey(
+        tenant_id=admin.tenant_id,
+        name=name,
+        key_hash=hash_password(full_key),
+        key_prefix=prefix,
+        created_by=admin.id,
+    )
+    db.add(key)
+    await db.commit()
+    await db.refresh(key)
+    return ApiKeyCreateOut(id=key.id, name=key.name, key_prefix=key.key_prefix, created_at=key.created_at, key=full_key)
+
+
+@router.delete("/api-keys/{key_id}", status_code=204)
+async def revoke_api_key(
+    key_id: str,
+    admin: Annotated[User, Depends(require_role(Role.admin))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    key = await db.get(ApiKey, key_id)
+    if key is None or key.tenant_id != admin.tenant_id or key.revoked_at is not None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "API key not found")
+    key.revoked_at = datetime.now(UTC)
+    await db.commit()
 
 
 @router.put("/tenant/logo", response_model=TenantSettingsOut)

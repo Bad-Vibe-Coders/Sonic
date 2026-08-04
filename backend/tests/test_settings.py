@@ -283,6 +283,66 @@ async def test_tenant_data_settings_scoped_to_caller_tenant(client):
     assert tenant_b_view.json()["retention_days"] == 90
 
 
+async def test_api_key_generate_reveals_full_key_once_and_lists_masked(client):
+    headers = await register_and_login(client, "api-key-a", "admin@api-key-a.example.com")
+
+    created = await client.post("/api/v1/settings/api-keys", headers=headers, json={"name": "Production"})
+    assert created.status_code == 201
+    body = created.json()
+    assert body["name"] == "Production"
+    assert body["key"].startswith("sk_live_")
+    assert body["key_prefix"] in body["key"]
+
+    listed = await client.get("/api/v1/settings/api-keys", headers=headers)
+    assert listed.status_code == 200
+    rows = listed.json()
+    assert len(rows) == 1
+    assert rows[0]["key_prefix"] == body["key_prefix"]
+    assert "key" not in rows[0]
+    assert "key_hash" not in rows[0]
+
+
+async def test_api_key_revoke_removes_it_from_listing(client):
+    headers = await register_and_login(client, "api-key-b", "admin@api-key-b.example.com")
+    created = (await client.post("/api/v1/settings/api-keys", headers=headers, json={"name": "Staging"})).json()
+
+    revoked = await client.delete(f"/api/v1/settings/api-keys/{created['id']}", headers=headers)
+    assert revoked.status_code == 204
+
+    listed = await client.get("/api/v1/settings/api-keys", headers=headers)
+    assert listed.json() == []
+
+
+async def test_api_key_requires_name(client):
+    headers = await register_and_login(client, "api-key-c", "admin@api-key-c.example.com")
+    resp = await client.post("/api/v1/settings/api-keys", headers=headers, json={"name": "   "})
+    assert resp.status_code == 400
+
+
+async def test_non_admin_cannot_generate_or_revoke_api_key(client):
+    headers = await register_and_login(client, "api-key-d", "carol@api-key-d.example.com")
+    with SyncSessionLocal() as session:
+        user = session.scalar(select(User).where(User.email == "carol@api-key-d.example.com"))
+        user.role = Role.agent
+        session.commit()
+
+    resp = await client.post("/api/v1/settings/api-keys", headers=headers, json={"name": "Nope"})
+    assert resp.status_code == 403
+
+
+async def test_api_keys_scoped_to_caller_tenant(client):
+    headers_a = await register_and_login(client, "api-key-iso-a", "a@api-key-iso-a.example.com")
+    headers_b = await register_and_login(client, "api-key-iso-b", "b@api-key-iso-b.example.com")
+
+    created = (await client.post("/api/v1/settings/api-keys", headers=headers_a, json={"name": "A key"})).json()
+
+    b_listing = await client.get("/api/v1/settings/api-keys", headers=headers_b)
+    assert b_listing.json() == []
+
+    b_revoke = await client.delete(f"/api/v1/settings/api-keys/{created['id']}", headers=headers_b)
+    assert b_revoke.status_code == 404
+
+
 async def test_non_admin_cannot_update_tenant_settings(client):
     headers = await register_and_login(client, "settings-role-a", "carol@settings-role-a-corp.example.com")
 

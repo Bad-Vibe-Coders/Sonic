@@ -326,6 +326,25 @@ class RefreshToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class ApiKey(Base):
+    """A tenant-issued API key (SON-50). The full key is shown to the admin
+    exactly once, at creation -- only its PBKDF2 hash and a short display
+    prefix (e.g. "sk_live_ab12") are persisted, same pattern as password
+    storage. Not yet wired into request authentication; that's a separate
+    ticket. Revocation is soft (revoked_at set) so past issuance is auditable."""
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    key_hash: Mapped[str] = mapped_column(String(255))
+    key_prefix: Mapped[str] = mapped_column(String(24))
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class PlatformAdmin(Base):
     """The SaaS vendor's own operators -- structurally separate from `User`
     (SON-64). Previously platform access was a boolean flag on a tenant user,

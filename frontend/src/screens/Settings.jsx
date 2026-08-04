@@ -6,6 +6,7 @@ import {
   getUserSettings, updateUserSettings, changePassword,
   getTenantSettings, updateTenantSettings,
   getTenantDataSettings, updateTenantDataSettings,
+  listApiKeys, createApiKey, revokeApiKey,
   uploadTenantLogo, removeTenantLogo, fetchTenantLogoUrl,
   listTeamMembers, listInvitations, inviteTeamMember, revokeInvitation, updateMemberRole, removeTeamMember,
 } from '../lib/api'
@@ -528,6 +529,100 @@ function BrandingTab() {
   )
 }
 
+function ApiKeysTab() {
+  const [keys, setKeys] = useState(null)
+  const [name, setName] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [revokingId, setRevokingId] = useState(null)
+  const [status, setStatus] = useState(null)
+  const [revealedKey, setRevealedKey] = useState(null)
+
+  function load() {
+    listApiKeys().then(setKeys).catch(() => setKeys(false))
+  }
+
+  useEffect(load, [])
+
+  async function generate() {
+    setStatus(null)
+    setRevealedKey(null)
+    setGenerating(true)
+    try {
+      const created = await createApiKey(name.trim() || 'Unnamed key')
+      setName('')
+      setRevealedKey(created)
+      load()
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not generate API key.' })
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function revoke(id) {
+    setRevokingId(id)
+    setStatus(null)
+    try {
+      await revokeApiKey(id)
+      load()
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Could not revoke API key.' })
+    } finally {
+      setRevokingId(null)
+    }
+  }
+
+  if (keys === null) return <Card className="p-6 text-[14px] text-muted">Loading…</Card>
+  if (keys === false) return <Card className="p-6 text-[14px] text-error">Couldn&rsquo;t load API keys.</Card>
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <h3 className="text-[16px] font-semibold text-ink">API keys</h3>
+        <div className="flex items-center gap-2">
+          <input
+            className="h-9 rounded-md border border-hairline bg-surface px-3 text-[13px] text-ink"
+            placeholder="Key name (e.g. Production)"
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
+          <Button size="sm" disabled={generating} onClick={generate}>
+            <Icon name="Plus" size={15} /> {generating ? 'Generating…' : 'Generate'}
+          </Button>
+        </div>
+      </div>
+
+      {revealedKey && (
+        <div className="mb-4 rounded-md border border-hairline p-3 space-y-1.5">
+          <p className="text-[12px] text-muted">Copy this key now — you won&rsquo;t be able to see it again.</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 font-mono text-[13px] text-body truncate">{revealedKey.key}</code>
+            <Button variant="ghost" size="sm" onClick={() => navigator.clipboard.writeText(revealedKey.key)}>
+              <Icon name="Copy" size={14} /> Copy
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Banner status={status} />
+
+      <div className="space-y-3 mt-3">
+        {keys.map(k => (
+          <div key={k.id} className="flex items-center gap-3 p-3 rounded-lg border border-hairline">
+            <span className="text-[14px] font-medium text-ink w-32 truncate">{k.name}</span>
+            <code className="flex-1 font-mono text-[13px] text-body">{k.key_prefix}••••••••</code>
+            <span className="text-[12px] text-muted">{new Date(k.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+            <Button variant="ghost" size="sm" disabled={revokingId === k.id} onClick={() => revoke(k.id)}>
+              <Icon name="Trash2" size={15} />
+            </Button>
+          </div>
+        ))}
+        {keys.length === 0 && <p className="text-[13px] text-muted py-3">No API keys yet.</p>}
+      </div>
+    </Card>
+  )
+}
+
 const RETENTION_OPTIONS = [
   { value: 30, label: '30 days' },
   { value: 90, label: '90 days' },
@@ -632,14 +727,7 @@ export default function Settings() {
             ))}
           </div>}
 
-          {tab === 'api' && <Card className="p-6">
-            <div className="flex items-center justify-between mb-4"><h3 className="text-[16px] font-semibold text-ink">API keys</h3><Button size="sm"><Icon name="Plus" size={15} /> Generate</Button></div>
-            <div className="space-y-3">
-              {[['Production', 'sk_live_••••••••4f2a', 'Jun 2026'], ['Staging', 'sk_test_••••••••9c01', 'May 2026']].map(([n, k, d]) => (
-                <div key={n} className="flex items-center gap-3 p-3 rounded-lg border border-hairline"><span className="text-[14px] font-medium text-ink w-24">{n}</span><code className="flex-1 font-mono text-[13px] text-body">{k}</code><span className="text-[12px] text-muted">{d}</span><Button variant="ghost" size="sm"><Icon name="Copy" size={15} /></Button></div>
-              ))}
-            </div>
-          </Card>}
+          {tab === 'api' && <ApiKeysTab />}
 
           {tab === 'data' && <DataRetentionTab />}
         </div>

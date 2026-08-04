@@ -270,6 +270,24 @@ class TenantDataSettingsUpdate(BaseModel):
         return v
 
 
+class ApiKeyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    key_prefix: str
+    created_at: datetime
+
+
+class ApiKeyCreateOut(ApiKeyOut):
+    # Only returned once, straight after creation -- the full key is never
+    # persisted, so this is the only chance the admin gets to see or copy it.
+    key: str
+
+
+class ApiKeyCreateRequest(BaseModel):
+    name: str
+
+
 class TeamMemberOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str

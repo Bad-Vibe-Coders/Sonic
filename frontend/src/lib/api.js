@@ -215,6 +215,10 @@ export const updateTenantSettings = (body) => request('/settings/tenant', { meth
 export const getTenantDataSettings = () => request('/settings/tenant/data')
 export const updateTenantDataSettings = (body) => request('/settings/tenant/data', { method: 'PUT', body })
 
+export const listApiKeys = () => request('/settings/api-keys')
+export const createApiKey = (name) => request('/settings/api-keys', { method: 'POST', body: { name } })
+export const revokeApiKey = (id) => request(`/settings/api-keys/${id}`, { method: 'DELETE' })
+
 export function uploadTenantLogo(file) {
   const form = new FormData()
   form.append('file', file)
