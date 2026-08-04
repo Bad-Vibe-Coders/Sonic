@@ -51,6 +51,7 @@ export async function platformLogin(email, password) {
 export const platformMe = () => request('/platform/auth/me')
 export const platformOverview = () => request('/platform/overview')
 export const platformTenants = () => request('/platform/tenants')
+export const platformBilling = () => request('/platform/billing')
 
 export function platformLogout() {
   clearPlatformToken()
