@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Card, SectionTitle, StatusChip, KPICard, Reveal } from '../components/ui'
 import { BarChart } from '../components/charts'
 import { PIPELINE } from '../lib/pipeline'
-import { platformOverview, platformTenants } from '../lib/platformApi'
+import { platformOverview, platformTenants, platformBilling } from '../lib/platformApi'
 import Icon from '../components/Icon'
 
 export function PlatformOverview() {
@@ -71,21 +71,58 @@ export function PlatformTenants() {
   return <div className="space-y-6"><div><h1 className="display d-lg text-ink">Tenants</h1><p className="text-muted mt-1">All customer organizations.</p></div><TenantTable /></div>
 }
 
+const centsToDollars = (cents) => `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+
 export function PlatformBilling() {
+  const [billing, setBilling] = useState(null)
+
+  useEffect(() => {
+    platformBilling().then(setBilling).catch(() => setBilling(false))
+  }, [])
+
+  const revenueLabels = billing ? billing.revenue_by_plan.map(p => p.plan_name) : []
+  const revenueData = billing ? billing.revenue_by_plan.map(p => p.mrr_cents / 100) : []
+
+  const kpis = billing ? [
+    ['MRR', centsToDollars(billing.mrr_cents)],
+    ['Net new', '—'],
+    ['Churn', '—'],
+    ['Overages', billing.overage_tenant_count === 0 ? '0 tenants' : `${billing.overage_tenant_count} tenant${billing.overage_tenant_count === 1 ? '' : 's'}`],
+  ] : [['MRR', '—'], ['Net new', '—'], ['Churn', '—'], ['Overages', '—']]
+
   return (
     <div className="space-y-8">
       <div><h1 className="display d-lg text-ink">Usage & billing</h1><p className="text-muted mt-1">Per-tenant consumption and revenue.</p></div>
       <div className="grid lg:grid-cols-3 gap-6">
-        <Reveal className="lg:col-span-2"><Card className="p-6"><SectionTitle title="Revenue by plan" sub="No payment provider integrated" /><BarChart data={[]} height={160} labels={['Starter', 'Team', 'Business', 'Enterprise']} /></Card></Reveal>
+        <Reveal className="lg:col-span-2"><Card className="p-6"><SectionTitle title="Revenue by plan" sub="Our own DB bookkeeping — no payment provider integrated" />
+          <BarChart data={revenueData} height={160} labels={revenueLabels} format={v => centsToDollars(v * 100)} />
+        </Card></Reveal>
         <Reveal delay={0.1}><Card className="p-6"><SectionTitle title="This cycle" />
           <div className="space-y-3">
-            {[['MRR', '—'], ['Net new', '—'], ['Churn', '—'], ['Overages', '—']].map(([l, v]) => <div key={l} className="flex justify-between text-[14px]"><span className="text-muted">{l}</span><span className="font-semibold text-ink">{v}</span></div>)}
+            {kpis.map(([l, v]) => <div key={l} className="flex justify-between text-[14px]"><span className="text-muted">{l}</span><span className="font-semibold text-ink">{v}</span></div>)}
           </div>
         </Card></Reveal>
       </div>
-      <Reveal><Card className="overflow-hidden"><div className="p-6 pb-3"><SectionTitle title="Tenant invoices" sub="Billing requires a payment provider integration (e.g. Stripe) that isn't wired up yet" /></div>
-        <table className="w-full text-[14px]"><thead><tr className="text-left text-muted text-[12px] uppercase border-y border-hairline">{['Tenant', 'Plan', 'This month', 'Status'].map(h => <th key={h} className="font-medium px-6 py-3">{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-hairline"><tr><td colSpan={4} className="px-6 py-8 text-center text-muted">No billing data available yet.</td></tr></tbody></table>
+      <Reveal><Card className="overflow-hidden"><div className="p-6 pb-3"><SectionTitle title="Tenant invoices" sub="Amounts are our own DB bookkeeping — no payment provider (e.g. Stripe) is wired up yet" /></div>
+        <div className="overflow-x-auto"><table className="w-full text-[14px] min-w-[600px]">
+          <thead><tr className="text-left text-muted text-[12px] uppercase border-y border-hairline">{['Tenant', 'Plan', 'This month', 'Status'].map(h => <th key={h} className="font-medium px-6 py-3">{h}</th>)}</tr></thead>
+          <tbody className="divide-y divide-hairline">
+            {billing === false ? (
+              <tr><td colSpan={4} className="px-6 py-8 text-center text-muted">You need platform-admin access to view this.</td></tr>
+            ) : billing === null ? (
+              <tr><td colSpan={4} className="px-6 py-8 text-center text-muted">Loading…</td></tr>
+            ) : billing.tenants.length === 0 ? (
+              <tr><td colSpan={4} className="px-6 py-8 text-center text-muted">No tenants yet.</td></tr>
+            ) : billing.tenants.map(t => (
+              <tr key={t.tenant_id} className="hover:bg-surface-soft">
+                <td className="px-6 py-3 font-medium text-ink">{t.tenant_name}</td>
+                <td className="px-6 text-body">{t.plan_name || '—'}</td>
+                <td className="px-6 text-body">{t.latest_invoice_amount_cents != null ? centsToDollars(t.latest_invoice_amount_cents) : '—'}</td>
+                <td className="px-6">{t.latest_invoice_status ? <StatusChip status={t.latest_invoice_status === 'paid' ? 'pass' : 'review'}>{t.latest_invoice_status}</StatusChip> : <span className="text-muted">—</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
       </Card></Reveal>
     </div>
   )
