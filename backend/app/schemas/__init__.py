@@ -215,11 +215,20 @@ class PasswordChangeRequest(BaseModel):
 
 
 class TenantSettingsOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     timezone: str
     qa_rules_path: str | None = None
+    has_logo: bool = False
+
+    @classmethod
+    def from_tenant(cls, tenant) -> "TenantSettingsOut":
+        # has_logo is derived from Tenant.logo_key -- the raw storage key
+        # itself is an internal detail, never handed to the client.
+        return cls(
+            id=tenant.id, name=tenant.name, timezone=tenant.timezone,
+            qa_rules_path=tenant.qa_rules_path, has_logo=bool(tenant.logo_key),
+        )
 
 
 class TenantSettingsUpdate(BaseModel):

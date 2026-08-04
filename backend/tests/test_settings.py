@@ -122,6 +122,105 @@ async def test_user_settings_scoped_to_caller(client):
     assert (await client.get("/api/v1/settings/me", headers=headers_b)).json()["name"] is None
 
 
+_PNG_BYTES = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\xcf\xc0"
+    b"\x00\x00\x03\x01\x01\x00\x18\xdd\x8d\xb0\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+async def test_tenant_has_no_logo_before_any_upload(client):
+    headers = await register_and_login(client, "logo-fresh", "a@logo-fresh.example.com")
+
+    resp = await client.get("/api/v1/settings/tenant", headers=headers)
+    assert resp.json()["has_logo"] is False
+
+    missing = await client.get("/api/v1/settings/tenant/logo", headers=headers)
+    assert missing.status_code == 404
+
+
+async def test_admin_can_upload_and_fetch_logo(client):
+    headers = await register_and_login(client, "logo-upload", "a@logo-upload.example.com")
+
+    upload = await client.put(
+        "/api/v1/settings/tenant/logo", headers=headers,
+        files={"file": ("logo.png", _PNG_BYTES, "image/png")},
+    )
+    assert upload.status_code == 200
+    assert upload.json()["has_logo"] is True
+
+    fetched = await client.get("/api/v1/settings/tenant/logo", headers=headers)
+    assert fetched.status_code == 200
+    assert fetched.headers["content-type"] == "image/png"
+    assert fetched.content == _PNG_BYTES
+
+
+async def test_logo_upload_rejects_disallowed_content_type(client):
+    headers = await register_and_login(client, "logo-badtype", "a@logo-badtype.example.com")
+
+    resp = await client.put(
+        "/api/v1/settings/tenant/logo", headers=headers,
+        files={"file": ("logo.gif", b"GIF89a", "image/gif")},
+    )
+    assert resp.status_code == 400
+
+
+async def test_logo_upload_rejects_oversized_file(client):
+    headers = await register_and_login(client, "logo-toobig", "a@logo-toobig.example.com")
+    oversized = b"\x00" * (2 * 1024 * 1024 + 1)
+
+    resp = await client.put(
+        "/api/v1/settings/tenant/logo", headers=headers,
+        files={"file": ("logo.png", oversized, "image/png")},
+    )
+    assert resp.status_code == 413
+
+
+async def test_non_admin_cannot_upload_logo(client):
+    headers = await register_and_login(client, "logo-role", "a@logo-role.example.com")
+    with SyncSessionLocal() as session:
+        user = session.scalar(select(User).where(User.email == "a@logo-role.example.com"))
+        user.role = Role.agent
+        session.commit()
+
+    resp = await client.put(
+        "/api/v1/settings/tenant/logo", headers=headers,
+        files={"file": ("logo.png", _PNG_BYTES, "image/png")},
+    )
+    assert resp.status_code == 403
+
+
+async def test_admin_can_remove_logo(client):
+    headers = await register_and_login(client, "logo-remove", "a@logo-remove.example.com")
+    await client.put(
+        "/api/v1/settings/tenant/logo", headers=headers,
+        files={"file": ("logo.png", _PNG_BYTES, "image/png")},
+    )
+
+    removed = await client.delete("/api/v1/settings/tenant/logo", headers=headers)
+    assert removed.status_code == 200
+    assert removed.json()["has_logo"] is False
+
+    missing = await client.get("/api/v1/settings/tenant/logo", headers=headers)
+    assert missing.status_code == 404
+
+
+async def test_tenant_a_cannot_see_tenant_bs_logo(client):
+    headers_a = await register_and_login(client, "logo-iso-a", "a@logo-iso-a.example.com")
+    headers_b = await register_and_login(client, "logo-iso-b", "b@logo-iso-b.example.com")
+
+    await client.put(
+        "/api/v1/settings/tenant/logo", headers=headers_b,
+        files={"file": ("logo.png", _PNG_BYTES, "image/png")},
+    )
+
+    a_settings = await client.get("/api/v1/settings/tenant", headers=headers_a)
+    assert a_settings.json()["has_logo"] is False
+
+    a_logo = await client.get("/api/v1/settings/tenant/logo", headers=headers_a)
+    assert a_logo.status_code == 404
+
+
 async def test_non_admin_cannot_update_tenant_settings(client):
     headers = await register_and_login(client, "settings-role-a", "carol@settings-role-a-corp.example.com")
 

@@ -213,6 +213,25 @@ export const changePassword = (current_password, new_password) =>
 export const getTenantSettings = () => request('/settings/tenant')
 export const updateTenantSettings = (body) => request('/settings/tenant', { method: 'PUT', body })
 
+export function uploadTenantLogo(file) {
+  const form = new FormData()
+  form.append('file', file)
+  return request('/settings/tenant/logo', { method: 'PUT', body: form, raw: true })
+}
+export const removeTenantLogo = () => request('/settings/tenant/logo', { method: 'DELETE' })
+
+// Binary response (the logo image), and auth is bearer-token rather than
+// cookie-based, so a plain <img src="..."> can't carry it -- fetch it as a
+// blob and hand the browser an object URL, same pattern as downloadInvoice.
+export async function fetchTenantLogoUrl() {
+  const res = await fetch(`${API}/settings/tenant/logo`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  })
+  if (!res.ok) return null
+  const blob = await res.blob()
+  return URL.createObjectURL(blob)
+}
+
 // ---- Team & roles ----
 export const listTeamMembers = () => request('/team/members')
 export const listInvitations = () => request('/team/invitations')
