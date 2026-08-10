@@ -33,10 +33,21 @@
 
 | Finding | Evidence | Severity |
 |---|---|---|
-| Host-based tenant isolation is opt-in, not default | `enforce_host_tenant_resolution=False` default | High — confirm production deployments explicitly enable this, or accept JWT-only isolation with documented rationale |
-| No webhook signature verification | No signature/HMAC code found for any webhook-style integration; no webhooks exist yet at all | Medium — becomes High the moment a webhook (e.g. payment provider) is added; must be built alongside that feature |
-| No explicit input sanitization beyond Pydantic | No dedicated sanitization/XSS layer found | Medium — likely mitigated by React's default escaping, but not explicitly verified against actual rendering paths (`dangerouslySetInnerHTML` usage unaudited) |
-| No LLM prompt-injection defenses | Conversation transcripts (user-controlled) flow into LLM prompts with no evidenced escaping | Medium — see Master Document 16, §AI Guardrails |
+| Host-based tenant isolation is opt-in, not default | `enforce_host_tenant_resolution=False` default | High — **ratified must-fix** (intake form Q17: not acceptable for launch; must be enabled and verified via security/UAT testing before deployment). Decision made, code change and verification still outstanding. |
+| No webhook signature verification | No signature/HMAC code found for any webhook-style integration; no webhooks exist yet at all | Medium → High once the payment integration (SSLCommerz/1Card, intake form Q11) is built. **Spec now defined below** — build alongside that feature, not after. |
+| No explicit input sanitization beyond Pydantic | No dedicated sanitization/XSS layer found | Medium. **Policy now defined below.** |
+| No LLM prompt-injection defenses | Conversation transcripts (user-controlled) flow into LLM prompts with no evidenced escaping | Medium — full mitigation spec now in Master Document 16, P7-02 §1 (delimited transcript blocks + directive-pattern flagging) and P7-03 (OWASP LLM01 row) |
+
+### Webhook signature-verification specification (for the payment integration and any future webhook)
+1. Every inbound webhook verifies a provider-supplied HMAC signature (header name and algorithm per provider — e.g. SSLCommerz's validation hash, 1Card's signature scheme) against the raw request body **before** any parsing or business logic runs; unverified requests return 400 and are logged, never processed.
+2. Replay protection: reject any webhook event whose `event_id`/transaction reference has already been processed (idempotency table keyed by provider + event ID), so a retried or replayed webhook cannot double-credit a payment or double-fire a state transition.
+3. Webhook endpoints are excluded from standard auth middleware (they're authenticated by signature, not a session) but must still be tenant-scoped where applicable and rate-limited to prevent abuse of the public endpoint.
+4. This spec must be implemented in the same PR that introduces the first webhook — not retrofitted after, per the original finding's own warning.
+
+### Input-sanitization policy (closes the "no explicit policy" gap)
+- **Backend**: Pydantic validation is the sanitization boundary for structural correctness (types, lengths, enums); it is not an XSS/injection sanitizer. No raw user input is ever interpolated into SQL (SQLAlchemy parameterization already prevents injection) or shell commands.
+- **Frontend**: React's default JSX escaping is the XSS boundary. Policy: `dangerouslySetInnerHTML` is **prohibited** anywhere conversation transcript content, tenant-supplied names, or any other user-controlled string is rendered. An ESLint rule (`react/no-danger`) should enforce this at lint time rather than relying on manual review.
+- This policy applies retroactively — an audit of existing `dangerouslySetInnerHTML` usage (if any) is a prerequisite implementation task, not optional.
 | No LICENSE / data-handling terms at repo root | Confirmed absent | Low/Compliance — see Master Document 7 |
 | No CODEOWNERS / issue & PR templates | Confirmed absent | Low/Process — weakens enforced review consistency claimed in CONTRIBUTING.md |
 
@@ -46,6 +57,9 @@
 - Infrastructure/cloud configuration review (IAM, network policy) — not visible from application code
 
 ## D. Outcome
-- [ ] Security owner triages each Part B finding: fix before release, accept with documented rationale (logged in Master Document 2), or schedule
+- [x] Highest-severity finding (host-based tenant isolation) triaged — founder ruling: must-fix before release (intake form Q17, logged in Master Document 2 as D-01)
+- [x] Webhook signature-verification spec and input-sanitization policy now written (this document) — implementation still outstanding, to land alongside the payment-integration feature
+- [x] LLM prompt-injection defense specified in Master Document 16 P7-02/P7-03
 - [ ] Dependabot alert backlog reviewed and cleared or triaged separately
 - [ ] Static assessment supplemented by a live test pass before Master Document 25 (Release Evidence Pack) sign-off
+- [ ] Code change: flip `enforce_host_tenant_resolution` to `True` and add verification test/UAT coverage

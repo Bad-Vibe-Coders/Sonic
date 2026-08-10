@@ -12,11 +12,14 @@ The codebase implements the *mechanics* of a subscription billing model, not the
 - `app/api/v1/billing.py` — exposes `/plans`, `/billing/me`, `/billing/invoices`, `/billing/plan` endpoints.
 - **No external payment gateway integration found** (no Stripe/payment SDK, no webhook handling) — the system can *represent* a subscription/invoice state but cannot currently *process* a real payment. This is a business-model completeness gap, not just a technical one: the actual revenue model (self-serve card payment? invoiced/contract sales? usage-based?) is not yet encoded anywhere.
 
-## 2. Business model questions requiring founder input (not derivable from code)
-- Pricing tiers and price points (the `Plan` table schema supports tiers; actual numbers are a business decision)
-- Billing cadence (monthly/annual) and proration rules
-- Whether pricing is seat-based, usage-based (e.g. per conversation analyzed), or flat-tier — the schema is generic enough to support any of these, so this is undetermined from code
-- Payment processor choice (Stripe, etc.) and who owns that integration decision
+## 2. Business model — founder-supplied answers (intake form Q10–12)
+- **Pricing model**: Usage-based via AI credits — customers purchase credits based on expected usage, consumed as conversations are processed/analyzed. Chosen deliberately so pricing scales with actual AI usage rather than seats/users.
+- **Price points/tiers**: Confirmed still open (intake form Round 2, Q33) — the model itself is locked (usage-based AI credits, block-on-exhaustion, see below), but exact tier names/credit volumes/prices remain undetermined pending pilot and market validation. This is the last genuinely unresolved number in the pricing model; everything else needed to build the billing/cost-governance system is now decided.
+- **Credit-exhaustion behavior (Q34 — resolved)**: the system **blocks further pipeline runs** once a tenant's AI credits are exhausted; processing stays blocked until renewal or additional credit purchase. A warning must be shown as the tenant approaches the limit (not just at zero). This is a hard product requirement now, not a design option — see Master Document 16, P7-07 for the implementation spec this decision drives.
+- **Billing cadence**: Monthly.
+- **Payment processor**: SSLCommerz or 1Card, subject to final selection and integration feasibility — **not yet integrated** (see Master Document 19, P6-05; no payment SDK/webhook code exists).
+
+This directly informs Master Document 16's P7-07 (AI cost governance): usage-based AI-credit billing makes per-call token/cost tracking a *billing-accuracy* requirement, not just a governance nice-to-have — it should be prioritized accordingly.
 
 ## 3. ROI model
 **Not found in repository.** No cost-per-conversation, infrastructure-cost, or customer-LTV modeling exists in code or docs. Relevant cost inputs that *are* derivable and should feed an ROI model:
@@ -28,13 +31,12 @@ The codebase implements the *mechanics* of a subscription billing model, not the
 - Prometheus metrics are instrumented (`prometheus-fastapi-instrumentator`) — request-level operational KPIs (latency, error rate, throughput) are technically available once dashboards are built. No dashboard/alerting config found in-repo.
 - Pipeline stage completion is tracked via `StageRun` — could feed a "pipeline success rate" KPI, but no aggregation/reporting code found.
 
-**Business KPIs — not found in repository, require founder/business definition:**
-- Revenue KPIs (MRR, ARR, churn)
-- Adoption/engagement KPIs (active tenants, conversations analyzed per tenant)
-- Success KPIs tied to the value proposition (e.g. compliance issues caught, time saved vs. manual review) — meaningful only once Master Document 5's output-quality validation is complete
+**Business KPIs — per intake form Q13**: Not yet finalized. Founder confirms MRR/ARR targets will be set after initial customer pilots, based on actual AI-credit consumption, customer adoption, and validated pricing. Initial focus: convert successful pilots into recurring monthly subscriptions, then scale enterprise accounts. This is an honest "not yet" — the control (P2-06) remains open, but the sequencing logic (pilot → convert → scale) is now recorded.
 
 ## 5. Outcome
-- [ ] Founder/business defines pricing model, tiers, and payment processor
+- [x] Founder defines pricing model (usage-based AI credits, Q10) and billing cadence (monthly, Q11); payment-processor candidates named (SSLCommerz/1Card, Q11) but not yet integrated
+- [x] Credit-exhaustion policy decided: block-until-renewal with an approaching-limit warning (Round 2, Q34) — implementation spec in Master Document 16, P7-07
+- [ ] Exact price tiers/points still pending pilot validation (Q12, reconfirmed as open in Round 2 Q33) — the only number left outstanding in this document
 - [ ] ROI model built incorporating LLM provider cost lever and target-architecture cost delta
-- [ ] Business KPIs defined and instrumented (dashboard/alerting on top of existing Prometheus metrics)
+- [ ] Business KPIs (MRR/ARR) explicitly deferred until post-pilot per Q13 — revisit this document once pilot data exists
 - [ ] Success KPIs deferred until AI pipeline output-quality validation (Master Document 5) is complete — measuring "success" of unvalidated output is premature

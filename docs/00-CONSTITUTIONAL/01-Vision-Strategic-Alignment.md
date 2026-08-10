@@ -21,17 +21,20 @@ Ingest conversations → run the multi-stage AI pipeline (`backend/app/pipeline/
 3. AI pipeline as the core value driver — **partially implemented** (provider abstraction and stage scaffolding exist; ASR/diarization model maturity and QA rules completeness are in progress).
 4. Trustworthy/compliant AI output — **partially implemented**: deterministic QA rules engine exists; no LLM-as-judge or human-approval workflow found in code (tracked in Master Document 16, controls P7-05).
 
-## 5. Explicitly not derivable from code — requires founder input
-- Formal vision/mission statement text (the above is a factual restatement of observed capability, not an approved aspirational statement)
-- Target revenue, growth, and timeline objectives
-- Target market segment(s) and competitive positioning priority
-- Whether the [doc/default] aspirational architecture in `TECH_STACK.md` represents a committed roadmap or a reference sketch
+## 5. Founder-supplied answers (from `docs/00-INTAKE-FORM.md`)
+
+- **Vision confirmation**: Yes — "AI Conversation Intelligence Platform" (compliance/risk/agent-performance analytics over recorded conversations) still matches the product vision.
+- **Target ICP today**: Enterprise and large-scale call centers/contact centers with high volumes of recorded customer interactions and dedicated QA teams, currently relying on manual call review, that need improved call coverage, reduced QA effort, compliance monitoring, standardized quality scoring, and better agent performance. Initial focus: organizations open to a pilot with sufficient recorded call volume to benefit from automated evaluation.
+- **Aspirational-vs-current architecture gap (`TECH_STACK.md`'s Kong/Kafka/Triton/Keycloak/ClickHouse)**: Confirmed intentional. The current lightweight architecture is deliberate for the initial phase; the target-state components will be introduced incrementally as scalability, security, AI-inference, and analytics needs grow. This directly ratifies Deviation D-02 in Master Document 2 and ADR-006 in Master Document 17 as intentional phased roadmap, not drift.
+- **Top 3 priorities, next 90 days**: Build the backend, validate AI capabilities, test the system.
 
 ## 6. Sign-off (C0-01 gate)
 | Role | Confirms | Status |
 |---|---|---|
-| Founder | Vision/mission text above accurately represents intent, or supplies corrected text | ☐ Pending |
-| Founder | Objectives in §4 are correctly prioritized | ☐ Pending |
-| Product lead | §5 gaps resolved and appended | ☐ Pending |
+| Founder | Vision/mission text above accurately represents intent | ☑ Confirmed — see §5 |
+| Founder | Objectives in §4 are correctly prioritized | ☑ Confirmed — 90-day priorities in §5 |
+| Product lead | §5 gaps resolved and appended | ☑ Resolved — ICP, architecture-gap intent, and near-term priorities now recorded above |
+
+**Remaining open item**: formal long-range revenue/growth/timeline objectives beyond the 90-day window are still not defined — see Master Document 10 (Business Model) for the related KPI gap.
 
 **Gate:** Per C0-01, this document must be signed off before any Phase 1 business document (Master Documents 8–10) or downstream architecture work proceeds.

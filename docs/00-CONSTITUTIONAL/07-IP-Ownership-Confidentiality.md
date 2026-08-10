@@ -2,7 +2,7 @@
 
 **Controls covered:** C0-12 (IP ownership and confidentiality of institutional assets respected)
 **Phase:** Constitutional Core
-**Status:** Draft — unresolved legal gap identified; cannot be closed by engineering alone
+**Status:** Draft — core ownership structure and MIT-license ambiguity resolved per founder input (see §4); contractor IP-assignment paperwork remains genuinely open
 
 ## 1. Findings
 - **No LICENSE file** exists at the repository root, nor in `backend/` or `frontend/`. `frontend/package.json` has `"private": true` but no `license`/`author` field. `backend/pyproject.toml` has no license field confirmed either.
@@ -20,14 +20,17 @@
 ## 3. Risk
 Operating/selling a product with (a) no license/ownership statement on the core codebase and (b) an embedded, differently-licensed sub-project creates ambiguity about who owns what IP and whether the sub-project's MIT terms could be misread as applying more broadly than intended. This is a blocking issue for fundraising, acquisition due diligence, or formal commercial contracts.
 
-## 4. Required actions (cannot be closed by engineering — needs legal/founder input)
-1. Founder/legal confirms actual IP ownership structure (company-owned work product, contractor IP-assignment agreements, etc.) and supplies the correct license/ownership statement for the Sonic repo root.
-2. Confirm whether `AI-Conversation-Intelligence-Architecture/`'s MIT license is intentional (e.g. meant as a public reference architecture) or should be relicensed/removed from the product repo.
-3. Confirm NDA/confidentiality coverage exists for all contributors — verify against external records, not inferable from code.
-4. If Anthropic processes customer conversation data, confirm this is covered by Anthropic's data-processing terms and reflected in Sonic's own customer agreements.
+## 4. Founder-supplied answers (from `docs/00-INTAKE-FORM.md`, Q22–24)
+
+1. **IP ownership structure**: Company-owned work product. Per the Sonic project charter, upon successful completion and final payment, full source-code ownership, IP rights, commercialization rights, deployment rights, and resale rights transfer to DRC.
+2. **Contractor/individual IP assignment**: **Confirmed still pending (intake form Round 2, Q36).** The founder confirms no target date or legal process has been finalized yet — this is explicitly waiting on a legal contact being engaged, not merely an oversight. **This is the one item in this document that cannot be closed by further founder Q&A; it requires an actual legal engagement to move.** Recommend flagging this as a pre-launch blocker in Master Document 26's risk index (already listed there) with "engage legal contact" as the concrete next action, since "pending legal input" without a named contact or date tends to stay pending indefinitely.
+3. **`AI-Conversation-Intelligence-Architecture/` MIT license**: Resolved — the directory has been **removed from the product repository**; it is not part of the commercial product and its MIT terms no longer create ambiguity for the Sonic codebase.
+4. **Repo-root license/ownership statement**: Supplied — "© 2026 DRC. All rights reserved. The Sonic source code and related intellectual property are proprietary and owned by DRC. No copying, modification, distribution, or commercial use is permitted without prior written authorization from DRC." **Action required**: commit this as an actual `LICENSE`/`NOTICE` file at the repo root — it exists today only as an intake-form answer, not as a committed file.
+5. **Third-party LLM data-handling (Anthropic)**: Not directly addressed by the intake form. Still needs confirmation that Anthropic's data-processing terms are reflected in Sonic's own customer agreements before `SONIC_LLM_PROVIDER=anthropic` is used with real customer data.
 
 ## 5. Outcome
-- [ ] Founder/legal supplies actual IP ownership status
-- [ ] LICENSE ambiguity between root repo and `AI-Conversation-Intelligence-Architecture/` resolved
-- [ ] Third-party LLM data-handling disclosure confirmed in customer-facing terms
-- [ ] **This document cannot be marked "satisfied" without genuine legal input — it is not closeable by documentation alone**
+- [x] Founder supplies IP ownership structure and repo-root ownership statement (Q22, Q24)
+- [x] `AI-Conversation-Intelligence-Architecture/` MIT-license ambiguity resolved by removing the directory (Q23)
+- [ ] Ownership statement committed as an actual `LICENSE`/`NOTICE` file at repo root (currently only documented here)
+- [ ] Contractor/individual IP-assignment agreement drafted and executed for the DIU student team — **confirmed still pending a legal contact being engaged (Round 2, Q36); no further founder Q&A can close this, only actual legal engagement**
+- [ ] Third-party LLM (Anthropic) data-handling disclosure confirmed in customer-facing terms

@@ -19,11 +19,14 @@
 The codebase reflects a **build** decision already made — a bespoke multi-tenant platform with its own pipeline, rather than a wrapper around a third-party conversation-analytics vendor (e.g. Gong, CallMiner, Observe.AI — none referenced in code). Whether this was a deliberate build-vs-buy assessment or simply "how the team knows how to build things" is not recorded anywhere in the repo.
 
 ## 3. Market, competitor, risk assessment (P1-05)
-**Not derivable from code.** No competitor analysis, market-sizing data, or named-competitor references exist anywhere in the repository. This section requires direct founder/business input:
-- Who are the named competitors (e.g. established conversation-intelligence vendors)?
-- What is Sonic's differentiation claim?
-- What is the addressable market size/segment?
-- What are the key market risks (e.g. incumbent vendors, AI-model commoditization, data-privacy regulation shifts)?
+
+**Founder-supplied answers (from `docs/00-INTAKE-FORM.md`, Q5–7):**
+- **Current-state/root-cause (Q5)**: Without Sonic, prospects rely on manual call review by QA teams — listening to a small sample of recorded calls, manually evaluating performance/compliance, preparing reports/coaching feedback. Because only a small percentage of calls can be reviewed, most interactions go unevaluated. This confirms the root-cause hypothesis in §1 above (manual review doesn't scale).
+- **Named competitors (Q6)**: Observe.AI, CallMiner, Cresta, NICE CXone, Verint.
+- **Differentiation claim (Q6)**: An AI-first, end-to-end call-quality platform focused on automated QA — 100% call coverage, AI quality scoring, compliance checking, sentiment/emotion analysis, call summarization, coaching insights, and enterprise reporting in one platform — positioned as simpler and more locally adaptable than adopting a large broader contact-center suite, with configurable scoring/compliance rules.
+- **Addressable market (Q7)**: Enterprise and large-scale call/contact centers with high recorded-interaction volume and dedicated QA operations; positioned as a multi-tenant SaaS platform scaling across enterprise customers.
+
+**Still not derivable from code or the intake form — confirmed as an open gap (intake form Round 2, Q41)**: the founder has no reliable quantified TAM/SAM figure or verified count of target contact centers yet; this is acknowledged as the weakest-evidenced claim in the current business case, with a quantified estimate planned after further market research. Not a blocker to proceed with the pilot, but should be resolved before this document is cited in investor or formal sales materials.
 
 **Risk observations that *are* derivable from the codebase** (technical risk, feeding into overall risk assessment):
 - Core AI value proposition is unvalidated (Master Document 5) — a product risk if the founder is representing this capability to prospects today.
@@ -31,6 +34,6 @@ The codebase reflects a **build** decision already made — a bespoke multi-tena
 - IP/licensing ambiguity (Master Document 7) — a risk in any investor or acquisition conversation.
 
 ## 4. Outcome
-- [ ] Founder supplies current-state/root-cause context beyond what's inferable from code (what does a prospect do today without Sonic?)
-- [ ] Market sizing, named competitors, and differentiation claim supplied by founder/business lead
-- [ ] Technical risk observations in §3 cross-referenced into [[../09-PROJECT-MANAGEMENT|Risk Register]] once that document exists
+- [x] Founder supplies current-state/root-cause context (Q5) and named competitors/differentiation (Q6)
+- [x] Quantified market sizing explicitly confirmed as an open gap, not an oversight (Round 2, Q41) — segment description exists (Q7), numbers do not; flagged for pre-investor/pre-sales-material resolution
+- [x] Technical risk observations in §3 now indexed in Master Document 26, P13-03's consolidated risk index

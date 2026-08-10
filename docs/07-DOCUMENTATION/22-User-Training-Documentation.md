@@ -24,10 +24,11 @@ This is a genuine content gap, not a structural one: the product has enough surf
 - Operational runbook references (ties to Master Document 23's support/lifecycle policy, and Master Document 18's backup/restore gap once resolved)
 
 **Training manual:**
-- Not scoped at all yet — depends on whether Sonic will be self-serve (minimal training needed) or high-touch/enterprise (dedicated onboarding/training program) — this is a go-to-market decision (Master Document 6, Commercialization Assessment) that determines how much training material is actually needed.
+- **Onboarding model decided (intake form Q32)**: High-touch/white-glove onboarding for early customers. The Sonic team will assist with initial setup, configuration, data integration, and user training, transitioning toward self-serve onboarding as the product matures. This scopes the training manual as a **dedicated, guided training program** for early customers, not a minimal self-serve quick-start — content should be written for a Sonic team member to walk a customer through, not for a customer to self-discover.
 
 ## 3. Outcome
-- [ ] Product/founder decides self-serve vs. high-touch onboarding model (determines training-manual scope)
+- [x] Product/founder decides onboarding model — high-touch/white-glove for early customers (Q32); scope shifts toward self-serve as the product matures
 - [ ] User manual authored covering the sections in §2, validated against the actual UI (screenshots/walkthroughs) once frontend flows are stable
 - [ ] Admin manual authored for platform operators
+- [ ] Training manual authored for the high-touch onboarding flow decided above
 - [ ] This document remains a gap-tracking placeholder until real content exists — it must not be mistaken for the manual itself

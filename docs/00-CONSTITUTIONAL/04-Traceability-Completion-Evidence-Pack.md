@@ -16,7 +16,7 @@ Establishes the chain: **business objective → requirement → design/architect
 | Secure session handling | Refresh-token rotation | Security Architecture | `app/core/security.py`, `RefreshToken` model | `test_refresh_rotation.py` | Implemented + tested |
 | AI-driven compliance insight | LLM + QA pipeline | AI Architecture & Governance | `app/pipeline/`, `app/services/llm.py`, `app/services/qa_rules.py` | **No dedicated scoring-correctness tests found** | Implemented, **not verified by test** |
 | Tenant billing | Plan/Subscription/Invoice | Database Design | `app/models/__init__.py`, `app/api/v1/billing.py` | **No billing state-transition tests found** | Implemented, **not verified by test** |
-| Human oversight of AI findings | Human-approval workflow (P7-05) | AI Architecture & Governance | **Not found in code** | N/A | **Not implemented** |
+| Human oversight of AI findings | Human-approval workflow (P7-05) | AI Architecture & Governance | **Not found in code** | N/A | **Ratified as required (intake form Q19: human approval mandatory before AI findings are customer-facing), not yet implemented** |
 
 ## 3. C0-10 — Completion verification method
 "Completion" for any item in this pack is only claimed when **all four** are true:

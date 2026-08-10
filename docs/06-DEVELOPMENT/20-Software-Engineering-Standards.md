@@ -11,22 +11,33 @@
 **Recommendation**: confirm frontend formatting consistency (add Prettier config if not already present via another mechanism); extend mypy strictness to `app.api` and `app.pipeline` if not already covered (currently scoped to `app.core.*`/`app.services.*` per evidence).
 
 ## P9-02 — SOLID/DRY/KISS, no duplicated logic
-**Status: Not exhaustively audited in this pass — spot evidence only.** Positive signals: the LLM provider abstraction (single switch point via `SONIC_LLM_PROVIDER`) and the pipeline stage flag pattern both demonstrate DRY/extensible design (see Master Document 14, §2). No duplicate-logic audit tool (e.g. `jscpd`, duplication linting) was confirmed configured in CI.
-**Recommendation**: add automated duplication detection to CI if not already present, or explicitly rely on code review (P9-04) as the enforcement mechanism and state that clearly rather than leaving it implicit.
+**Status: Enforcement mechanism now decided.** Positive signals: the LLM provider abstraction (single switch point via `SONIC_LLM_PROVIDER`) and the pipeline stage flag pattern both demonstrate DRY/extensible design (see Master Document 14, §2).
+
+**Decision**: rely on code review (P9-04's checklist, see below) as the enforcement mechanism, not a dedicated duplication-detection tool — at the current team size (4 developers, per Master Document 26) and codebase scale, `jscpd`-style tooling adds CI overhead and false-positive noise disproportionate to the benefit. Revisit this decision if the codebase grows past roughly 3x its current size or a second team starts contributing, at which point automated duplication detection becomes worth the setup cost.
 
 ## P9-03 — Git workflow and branching strategy
 **Status: Compliant, well-documented.** Per `CONTRIBUTING.md` (repo root): ticket-prefixed feature branches (`feature/SON-<n>-<slug>`) branched off `staging`, never `main`; commit/PR titles tied to Jira auto-transition via the "GitHub for Jira" app; Gitleaks secret-scanning policy with defined rotation steps if a secret leaks. Observed in practice: recent commits/branches follow this pattern (SON-65, SON-64, SON-61, SON-57, SON-49, etc.), plus Dependabot-managed dependency-bump branches.
 
 ## P9-04 — Code review checklist enforced
-**Status: Partial.** `CONTRIBUTING.md` requires ≥1 approval and passing CI (lint, build, secret scan) before merge — this is a real, evidenced requirement (`pr-validation.yml`). **However**: no `CODEOWNERS` file exists (so review routing isn't enforced by ownership), and no `.github/PULL_REQUEST_TEMPLATE.md` or `.github/ISSUE_TEMPLATE/` exists — meaning there is no structured checklist a reviewer is prompted to work through; approval is currently a binary GitHub gate without a documented substantive checklist (e.g. "did this change require a doc update per C0-03?", "does this touch a P7 AI-governance control?").
-**Recommendation**: add a PR template with a lightweight checklist (tests added, docs updated, security-relevant changes flagged) and consider a CODEOWNERS file for the highest-risk areas (`app/core/security.py`, `app/core/tenant_resolution.py`, `app/services/llm.py`).
+**Status: Spec defined (also closes Master Document 2's D-05), not yet implemented.** `CONTRIBUTING.md` requires ≥1 approval and passing CI (lint, build, secret scan) before merge — this is a real, evidenced requirement (`pr-validation.yml`). No `CODEOWNERS` file or PR template exists yet.
+
+**Specification:**
+1. **`CODEOWNERS`** (mapped to Master Document 26's RACI): `app/core/security.py`, `app/core/tenant_resolution.py` → Farhan Sadik (Security/Multi-tenancy owner); `app/services/llm.py`, `app/pipeline/`, `app/prompts/` → Shah Mustakin Rahman (AI/LLM owner); `app/api/v1/billing.py`, billing models → Huzayfa Talha (Billing owner); `.github/workflows/` → MD. Mohiuddin Ahmed (CI/CD owner). CTO (Alauddin Azad) as a fallback reviewer on all four.
+2. **`.github/PULL_REQUEST_TEMPLATE.md`** checklist:
+   - [ ] Tests added/updated for this change
+   - [ ] Documentation updated (which Master Document, if any, per C0-03)
+   - [ ] Touches a security-relevant path (auth, tenant resolution, secrets)? If yes, security owner tagged
+   - [ ] Touches an AI-governance control (P7-01 through P7-10, Master Document 16)? If yes, which one, and is the spec in that document still accurate
+   - [ ] Migration included? `migration-check.yml` expected to pass
+3. This is a pure process artifact — two files, no code dependency — and should be the fastest item on this entire punch list to close.
 
 ## P9-05 — Technical debt tracked
-**Status: Gap.** No technical-debt register, `TODO`/`FIXME` tracking process, or dedicated debt-tracking board was found in the repository. Project tracking is external (Jira, per `getstarted.md` and `CONTRIBUTING.md`), so debt may be tracked there, but no in-repo evidence confirms this or makes it visible to this documentation pass.
-**Recommendation**: either confirm Jira is the authoritative technical-debt tracker (and note that here so future contributors know where to look), or establish an explicit in-repo debt log for cases where a shortcut is taken to unblock a PR (e.g. any deviation logged in Master Document 2 that is a code-quality tradeoff rather than a constitutional one).
+**Status: Decision made — split tracking, now that Jira is confirmed authoritative (intake form Round 2, Q37).** Technical debt is tracked with a two-tier model:
+1. **In-repo, constitutional-tradeoff debt** (a shortcut that deviates from a C0 principle) — stays in Master Document 2 (Deviation & Change Register). This category is EADC-specific and belongs in the governance doc set regardless of Jira's role, so it does not move.
+2. **Code-quality debt** (not a constitutional deviation, just a "do this properly later" note) — tracked as **Jira tickets** (labeled `tech-debt`), consistent with Jira now being the single authoritative backlog. A `# TECHDEBT: SON-<n>` comment convention in code links directly to the ticket, so the in-repo marker and the tracked item never drift apart.
 
 ## Outcome
 - [ ] Frontend formatting standard confirmed/added (P9-01)
-- [ ] Duplication-detection approach confirmed (automated or review-based, stated explicitly) (P9-02)
-- [ ] PR template + lightweight review checklist added; CODEOWNERS considered for high-risk files (P9-04)
-- [ ] Technical-debt tracking location confirmed (Jira or in-repo) and referenced here (P9-05)
+- [x] Duplication-detection approach decided: review-based, not automated tooling, at current team size (P9-02)
+- [x] PR template + CODEOWNERS fully specified, mapped to Master Document 26's RACI owners (P9-04) — implementation (adding the two files) still outstanding, closes Deviation D-05
+- [x] Technical-debt tracking approach decided: split model (Master Document 2 for constitutional tradeoffs, `docs/TECH-DEBT.md` for code-quality debt) pending Jira-authority resolution (P9-05)

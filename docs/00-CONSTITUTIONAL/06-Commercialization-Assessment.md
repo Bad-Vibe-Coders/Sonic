@@ -16,11 +16,11 @@ Assess whether Sonic, as currently built, is viable as a standalone commercial p
 - CI/CD, secret scanning, and dependency management (Dependabot) in place — baseline operational maturity for a product taking on customer data.
 
 **Absent or weak (risks to commercial viability):**
-- **No LICENSE / IP ownership statement** at repo root — a commercial product needs unambiguous IP ownership before it can be sold, licensed, or funded (see Master Document 7).
-- **No external payment integration** (no Stripe/payment gateway code found) — billing models exist but cannot currently process real payments.
-- **No SLA, uptime target, or support-tier definition** found anywhere in the repo — required for enterprise sales contracts.
-- **AI pipeline output quality unvalidated** (see Master Document 5) — the core sellable value proposition lacks demonstrated evidence.
-- **No pricing model** encoded beyond the `Plan` table schema — actual price points/tiers are a business decision not yet made or not yet in this repo.
+- **LICENSE / IP ownership statement** — **resolved at the decision level** (intake form Q22–24): company-owned work product, ownership transfers to DRC, repo-root ownership statement supplied ("© 2026 DRC. All rights reserved..."). Still needs the statement actually committed to the repo and contractor IP-assignment paperwork finalized.
+- **No external payment integration** (no Stripe/payment gateway code found) — billing models exist but cannot currently process real payments. Candidate processors named (SSLCommerz/1Card, per Q11) but not yet integrated.
+- **SLA/support** — **partially resolved**: intake form Q14 targets 99.9% uptime; support response-time commitments still not finalized (Q14, Q31).
+- **AI pipeline output quality unvalidated** (see Master Document 5) — the core sellable value proposition lacks demonstrated evidence. Not addressed by the intake form — remains the top commercialization risk.
+- **Pricing model** — **resolved at the decision level** (Q10): usage-based AI-credit pricing, monthly billing. Exact tiers/price points still pending pilot validation.
 - Version `0.1.0` in both `backend/pyproject.toml` and `frontend/package.json`, no git tags — signals pre-release/early-stage maturity, consistent with "not yet commercially launched."
 
 ## 3. Standalone-product assessment
@@ -33,11 +33,14 @@ Before commercial launch:
 3. Validate AI pipeline output quality with real/representative data (Master Document 5)
 4. Define and document SLA/support commitments
 
-## 5. Not derivable from code — requires founder/business input
-- Target pricing and packaging
-- Whether the intent is direct sale, white-label, or internal-tool-turned-product
-- Go-to-market timeline
+## 5. Founder-supplied answers (from `docs/00-INTAKE-FORM.md`)
+- **Pricing/packaging**: Usage-based pricing via AI credits — customers purchase credits consumed as conversations are processed. Exact tiers/price points still under validation (entry/business/enterprise packages being considered), to be finalized through pilot usage.
+- **Billing cadence / processor**: Monthly billing; SSLCommerz or 1Card as candidate payment processors, subject to final selection/integration feasibility — **no integration exists yet**, so this remains a build item, not just a decision.
+- **Commercialization path**: Direct SaaS product sales to enterprise customers, subscription-based and usage-driven, multi-tenant SaaS deployment — confirmed, not white-label or internal-tool-turned-product.
+- **IP ownership**: Company-owned work product; full IP/source-code ownership transfers to DRC on successful completion and final payment (see Master Document 7). Contractor/individual IP-assignment agreements with the DIU student team are **not yet formally documented** — flagged as the one remaining IP loose end.
 
 ## 6. Outcome
-- [ ] Founder confirms commercialization intent and timeline
-- [ ] Items in §4 sequenced into the roadmap before any commercial commitment is made externally
+- [x] Founder confirms commercialization intent (direct SaaS, usage-based AI-credit pricing) and path — Q10–13, Q25
+- [ ] Payment processor selection finalized and integrated (SSLCommerz/1Card candidates named, not yet built)
+- [ ] Contractor IP-assignment documentation completed (Master Document 7)
+- [ ] Remaining items in §4 (SLA/support definition, AI output-quality validation) sequenced into the roadmap before any commercial commitment is made externally

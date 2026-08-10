@@ -53,10 +53,31 @@
 `EADC Control.md`'s 25-document master list does not assign the P13 control group (Project Management: charter, RACI, risk/issue/decision registers, team charter) to any of its 25 documents, even though the Combined Master Control List section counts P13's 4 controls toward the 66-control total. This appears to be an omission in the master list rather than an intentional exclusion. **Master Document 26 was added to close this gap** rather than silently leaving 4 of 66 controls undocumented.
 
 ## 5. P16-04 — Documentation current with released version
-**Status: Cannot be fully verified — process gap.** No version tag exists on any document (this register is the first attempt at systematic tracking), and the application itself is at `0.1.0` with no git tags (see Master Document 23). Until a release-tagging process exists, "documentation is current with the released version" cannot be mechanically verified — it currently relies on this register being manually kept in sync.
-**Recommendation**: once the product reaches a tagged release process (Master Document 23), stamp each governance document with the app version it was last verified against.
+**Status: Process now specified; mechanical verification still blocked on git tagging.** No version tag exists on any document, and the application itself is at `0.1.0` with no git tags (see Master Document 23).
 
-## 6. Outcome
-- [ ] Each document owner (once assigned per Master Document 26 RACI) confirms their document(s) current
-- [ ] Version-stamping process defined once release tagging exists (ties to Master Document 23)
+**Version-stamping process (spec)**: once the first git tag is cut (Master Document 23), each Master Document's header gains a line `**Last verified against:** vX.Y.Z` set by that document's RACI owner at release time. A doc whose "last verified" tag is more than one minor version behind the current release is flagged stale in this register's table. Until the first tag exists, this register itself is the interim tracking mechanism (§2 table, kept current as documents change).
+
+**Status update (intake form Round 2, Q38)**: no target date for the first tagged release exists yet — this is being defined as part of 90-day roadmap/release planning, now tracked in **Jira** (confirmed authoritative per Master Document 26, Round 2 Q37). This process remains dormant until that first tag lands; it does not block any other control in the meantime.
+
+## 6. Document ownership (per Master Document 26 RACI)
+
+| Document(s) | Owner (Responsible) |
+|---|---|
+| 1, 8, 9, 10 (Vision/Business/Market) | Nasib Khan (Head of DRC) |
+| 2, 3, 4, 25 (Governance gates, deviations, release evidence) | MD. Alauddin Azad (CTO) |
+| 11, 12, 13 (Requirements) | MD. Alauddin Azad, with Nasib Khan consulted on business terms |
+| 14, 15, 17 (Architecture, Security, ADRs) | MD. Alauddin Azad |
+| 16 (AI Governance) | Shah Mustakin Rahman, with Alauddin Azad accountable |
+| 18 (Database) | Huzayfa Talha |
+| 19 (API/Integration) | Farhan Sadik |
+| 20 (Engineering Standards) | MD. Mohiuddin Ahmed |
+| 21, 22 (Documentation) | MD. Mohiuddin Ahmed |
+| 6, 7 (Commercialization, IP) | Nasib Khan |
+| 23 (Lifecycle) | MD. Mohiuddin Ahmed, with Nasib Khan consulted |
+| 24 (Automation) | Shah Mustakin Rahman |
+| 26 (Project Management) | MD. Mohiuddin Ahmed |
+
+## 7. Outcome
+- [x] Each document owner assigned per Master Document 26 RACI (table above) — each owner confirms their document(s) current as part of normal review, not a one-time signoff
+- [x] Version-stamping process specified — activation blocked on the first git tag existing (Master Document 23)
 - [ ] `EADC Control.md`'s P13 gap flagged to whoever maintains the master control list, for correction upstream

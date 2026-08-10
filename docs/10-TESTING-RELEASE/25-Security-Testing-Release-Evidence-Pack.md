@@ -31,11 +31,11 @@ Frontend: Vitest + Testing Library (colocated `*.test.jsx`) + Playwright e2e —
 
 | Finding | Severity | Status at release time |
 |---|---|---|
-| Host-based tenant isolation opt-in, not default | High | ☐ Must be explicitly decided before release |
-| No webhook signature verification | Medium (N/A until a webhook exists) | ☐ N/A unless a webhook is added this release |
+| Host-based tenant isolation opt-in, not default | High | ☒ Decided (intake form Q17: must be enabled before launch) — ☐ code change + verification still outstanding |
+| No webhook signature verification | Medium (N/A until a webhook exists) | ☐ N/A unless a webhook is added this release — payment integration (Q11) will trigger this |
 | No input sanitization beyond Pydantic | Medium | ☐ Must be verified or accepted with rationale |
 | No LLM prompt-injection defenses | Medium | ☐ Must be verified or accepted with rationale |
-| No LICENSE at repo root | Low/Compliance | ☐ Tracked in Master Document 7, not release-blocking by itself |
+| No LICENSE at repo root | Low/Compliance | ☒ Ownership statement decided (Q22–24) — ☐ not yet committed as an actual `LICENSE` file |
 
 ## 5. Release readiness checklist (the actual gate)
 
@@ -54,11 +54,11 @@ Frontend: Vitest + Testing Library (colocated `*.test.jsx`) + Playwright e2e —
 - [ ] `enforce_host_tenant_resolution` deployment setting explicitly decided for the target environment
 
 ### AI-specific gates (from Master Document 16)
-- [ ] P7-05 (human approval) status confirmed — if AI findings ship without human review, this is an explicit, disclosed product decision
+- [x] P7-05 (human approval) status confirmed — **required** per founder decision (intake form Q19); code implementation (review-status field/workflow) is the remaining blocker, not the policy question
 - [ ] P7-01 (prompt registry) status confirmed — built or explicitly deferred
 
 ### Legal/IP gate (from Master Document 7)
-- [ ] IP ownership/LICENSE ambiguity resolved, or explicitly accepted as non-blocking for this release with rationale
+- [x] IP ownership structure and repo-root license text confirmed by founder (Q22–24) — [ ] still needs to be committed as an actual `LICENSE` file, and contractor IP-assignment paperwork finalized before this gate is fully closed
 
 ## 6. Sign-off
 

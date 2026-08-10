@@ -28,7 +28,7 @@ These ADRs are reconstructed from code evidence, not sourced from original decis
 - **Decision**: `app/services/llm.py` switches provider via `SONIC_LLM_PROVIDER`; defaults to local Ollama/Mistral, Anthropic Claude available as an alternative.
 - **Alternatives considered (inferred)**: Anthropic-only (simpler, single code path, but forces external data transfer and per-call cost for every deployment); OpenAI or other providers (not present in code at all).
 - **Status**: Implemented.
-- **Rationale**: Default-local avoids sending customer conversation data to a third party unless explicitly configured — likely a deliberate data-residency/cost decision (confirm with AI/product owner, see Master Document 16).
+- **Rationale**: Default-local avoids sending customer conversation data to a third party unless explicitly configured. **Confirmed** by founder (intake form Q18): Ollama is used during the current testing/prototyping phase to run the LLM locally; before production launch, the plan is to move to a production-grade AI API provider (Anthropic, OpenAI, etc.) for scalability while keeping local development/testing on Ollama.
 
 ## ADR-005: Deterministic QA rules engine alongside (not instead of) LLM analysis
 - **Decision**: `app/services/qa_rules.py` is a separate, non-LLM rules engine distinct from the LLM pipeline stage.
@@ -38,9 +38,9 @@ These ADRs are reconstructed from code evidence, not sourced from original decis
 
 ## ADR-006: Aspirational architecture documented separately from implementation
 - **Decision**: `TECH_STACK.md` explicitly separates [implemented] from [doc/default] items (Kong, Kafka, Triton, Keycloak, ClickHouse).
-- **Alternatives considered**: build directly to the target architecture from day one (rejected — current build is a lighter-weight skeleton, consistent with an incremental-build strategy, though this has not been explicitly ratified as intentional vs. drift — see Master Document 2, Deviation D-02).
-- **Status**: Documented, not built.
-- **Risk**: Without periodic reconciliation, the doc/default section can silently become stale or be mistaken for current capability.
+- **Alternatives considered**: build directly to the target architecture from day one (rejected — current build is a lighter-weight skeleton, consistent with an incremental-build strategy).
+- **Status**: Documented, not built. **Ratified as intentional** (intake form Q3): the current architecture is deliberately lightweight for this phase; target components will be introduced incrementally as scalability, security, AI-inference, and analytics requirements grow. Closes Master Document 2's Deviation D-02 as Approved.
+- **Risk**: Without periodic reconciliation, the doc/default section can silently become stale or be mistaken for current capability — still worth a periodic review cadence despite the intent now being confirmed.
 
 ## ADR-007: Single-file model module (`app/models/__init__.py`) rather than per-domain model files
 - **Decision**: All ~15 SQLAlchemy models live in one `__init__.py` file rather than split by domain (e.g. `models/tenant.py`, `models/billing.py`).

@@ -15,24 +15,31 @@ Routes (evidenced, `app/api/v1/router.py`, prefix `/api/v1`): `auth`, `team`, `o
 **Recommendation**: run an explicit audit listing every endpoint and its required scope/role, confirm no endpoint is unintentionally open.
 
 ## P6-03 — Rate limiting and API versioning
-**Status: Partial.**
-- Rate limiting: implemented but **only on auth-sensitive endpoints** (login 8/min, register 20/hour, refresh 30/min, forgot-password 5/hour via slowapi/Redis). No rate limiting evidenced on other endpoints (e.g. conversation creation, search, analytics) — a potential abuse/cost vector, especially for LLM-backed pipeline triggers (ties to Master Document 16's P7-07 AI cost governance gap).
-- Versioning: a literal `/api/v1` prefix exists; **no `/v2` or deprecation pattern exists yet** — versioning strategy for a future breaking change is undefined (e.g. header-based vs. path-based versioning going forward, deprecation notice period).
-**Recommendation**: extend rate limiting to pipeline-triggering and cost-sensitive endpoints; document the versioning/deprecation policy before a `/v2` is ever needed.
+**Status: Partial implementation, full policy now specified.**
+- Rate limiting: implemented but **only on auth-sensitive endpoints** (login 8/min, register 20/hour, refresh 30/min, forgot-password 5/hour via slowapi/Redis). No rate limiting evidenced on other endpoints (e.g. conversation creation, search, analytics) — a potential abuse/cost vector, especially for LLM-backed pipeline triggers.
+  **Spec**: extend the existing slowapi/Redis limiter to `POST /conversations` (pipeline trigger) and `/search`, scoped per-tenant rather than per-IP (a tenant's own heavy usage shouldn't be conflated with abuse from elsewhere). Default limits set per plan tier once the AI-credit billing model (Master Document 10) defines tier throughput — until then, a conservative default (e.g. 60 conversation-creations/tenant/hour) prevents runaway cost exposure. This is the same guardrail as Master Document 16's P7-02 §4, implemented at the API layer rather than duplicated.
+- Versioning: a literal `/api/v1` prefix exists; no `/v2` pattern exists yet.
+
+**Versioning/deprecation policy specification:**
+1. **Scheme**: path-based versioning (`/api/v2`, etc.) — consistent with the existing `/api/v1` convention, simpler for API consumers to pin than header-based negotiation, and requires no change to existing client integration patterns.
+2. **Coexistence**: a new major version is added alongside the old one (`/api/v1` and `/api/v2` both live), never a breaking in-place change to `/api/v1`.
+3. **Deprecation notice**: once `/v2` ships, `/v1` is marked deprecated with a minimum **90-day** notice period before removal, communicated via (a) an `X-API-Deprecated` response header on every `/v1` call, and (b) direct notice to tenant admins (reusing the existing `Notification`/email infrastructure).
+4. **Trigger for `/v2`**: only a breaking change (removed field, changed semantics, incompatible auth model) requires a new version — additive, backward-compatible changes ship into `/v1` directly.
 
 ## P6-04 — Webhook / event integration secured
-**Status: Not applicable today — genuinely no webhooks exist.** No "webhook" string matches found anywhere in `backend/app`. This is not a security gap in the current system (nothing to secure), but it is a **forward-looking constraint**: the moment any webhook-style integration is added (most likely a payment provider, per Master Document 10's billing gap), signature verification, replay protection, and idempotency handling must be built as part of that feature — not retrofitted after.
+**Status: Not applicable today — genuinely no webhooks exist; full spec now written ahead of need.** No "webhook" string matches found anywhere in `backend/app`. The payment integration confirmed in the intake form (Q11: SSLCommerz or 1Card) will be the first webhook consumer — the signature verification, replay protection, and idempotency-handling specification is written in Master Document 15 ("Webhook signature-verification specification") so it exists **before** that feature is built, satisfying this control's forward-looking intent rather than retrofitting after an incident.
 
 ## P6-05 — Integration architecture with external systems
 **Status: Minimal, documented here for completeness.**
-- **Email**: `app/services/email.py` uses raw `smtplib` against SMTP settings (`SONIC_SMTP_HOST`/user/password) — SES/SendGrid/Postmark-compatible via SMTP, not a vendor SDK. If unconfigured, emails are logged instead of sent (dev-mode fallback) — this must be explicitly verified as intentional in production config (an unconfigured SMTP host in production would silently fail to deliver password resets/invitations).
+- **Email**: `app/services/email.py` uses raw `smtplib` against SMTP settings (`SONIC_SMTP_HOST`/user/password) — SES/SendGrid/Postmark-compatible via SMTP, not a vendor SDK. If unconfigured, emails are logged instead of sent (dev-mode fallback).
+  **Production policy (spec)**: add a startup check that fails deployment (or emits a loud, alertable warning) if `SONIC_ENV=production` and `SONIC_SMTP_HOST` is unset — the current silent-fallback behavior is correct for dev/test but must not be reachable in a production config, since it would silently drop password resets and team invitations with no operator visibility.
 - **LLM providers**: Anthropic Claude API (`anthropic` SDK) or local Ollama — see Master Document 16.
 - **Object storage**: boto3 against S3/MinIO-compatible storage.
 - **No other third-party integrations found** (no Stripe/Twilio/SendGrid SDK references).
 
 ## Outcome
-- [ ] OpenAPI contract committed/exported as a CI artifact (P6-01)
-- [ ] Route-by-route auth/authorization audit performed and documented (P6-02)
-- [ ] Rate limiting extended beyond auth endpoints; API versioning/deprecation policy documented (P6-03)
-- [ ] Webhook security requirements written into the definition-of-done for any future webhook feature (P6-04)
-- [ ] SMTP production-config verified as non-silent-failure (P6-05)
+- [ ] OpenAPI contract committed/exported as a CI artifact (P6-01) — implementation task, no policy blocker
+- [ ] Route-by-route auth/authorization audit performed and documented (P6-02) — implementation/audit task, no policy blocker
+- [x] Rate-limiting extension and API versioning/deprecation policy now specified (P6-03) — implementation still outstanding; exact per-tier throughput limits depend on Master Document 10's pricing tiers (still pending, Q12)
+- [x] Webhook security requirements specified in Master Document 15, ready for the payment-integration feature (P6-04)
+- [x] SMTP production-config policy specified — implementation (the startup check) still outstanding (P6-05)

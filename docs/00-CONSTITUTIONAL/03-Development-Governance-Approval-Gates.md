@@ -14,7 +14,7 @@ Defines the five core design-principle gates from the Constitution and records t
 
 ## 3. C0-04 — Architecture Before Coding
 **Principle**: Architecture is designed before implementation begins.
-**Current status**: **Mixed.** A separate `AI-Conversation-Intelligence-Architecture/` project exists with its own ERD, diagrams, and target-state design — suggesting architecture-first intent existed for at least the AI/data layers. However, `TECH_STACK.md` shows the actual implementation diverges from that target architecture (lighter-weight stack), meaning either the architecture was revised without a recorded ADR, or the target was aspirational from the start. See Master Document 17 (ADR Register) and Deviation D-02 in Master Document 2.
+**Current status**: **Ratified as intentional, per founder input.** Per intake form Q3, the gap between `TECH_STACK.md`'s target architecture (Kong/Kafka/Triton/Keycloak/ClickHouse) and the current lighter-weight build is confirmed as a deliberate phased roadmap, not undocumented drift — target components will be introduced incrementally as scalability/security/AI-inference/analytics requirements grow. See Master Document 1 §5, Master Document 2 (Deviation D-02, now Approved), and Master Document 17 (ADR-006).
 **Gate enforcement**: none automated.
 
 ## 4. C0-05 — Reuse Before Rebuild
@@ -24,8 +24,8 @@ Defines the five core design-principle gates from the Constitution and records t
 
 ## 5. C0-06 — Security Before Deployment
 **Principle**: Security review/hardening precedes deployment, not follows an incident.
-**Current status**: **Partially compliant.** Strong points: PBKDF2 password hashing (200k iterations), refresh-token rotation with reuse detection, platform-admin isolation (SON-64), Redis-backed rate limiting on auth endpoints, automated secret scanning in CI (`secret-scan.yml`, gitleaks). Gaps: host-based tenant isolation disabled by default (D-01), no webhook signature verification (no webhooks exist yet, but the principle must be applied *when* one is added, not after), no LLM prompt-injection defenses evidenced. Full detail in Master Document 15 (Security Architecture & Assessment).
-**Gate enforcement**: CI enforces secret scanning and lint; no CI gate currently blocks merge on a security-review checklist.
+**Current status**: **Partially compliant, with a founder ruling now on record.** Strong points: PBKDF2 password hashing (200k iterations), refresh-token rotation with reuse detection, platform-admin isolation (SON-64), Redis-backed rate limiting on auth endpoints, automated secret scanning in CI (`secret-scan.yml`, gitleaks). Gaps: host-based tenant isolation disabled by default (D-01) — per intake form Q17, this is **not acceptable for launch**; `enforce_host_tenant_resolution` must be turned on and verified through security/UAT testing before deployment (ratified, code change still outstanding). No webhook signature verification (no webhooks exist yet, but the principle must be applied *when* one is added, not after), no LLM prompt-injection defenses evidenced. Full detail in Master Document 15 (Security Architecture & Assessment).
+**Gate enforcement**: CI enforces secret scanning and lint; no CI gate currently blocks merge on a security-review checklist. **Recommendation**: add a pre-launch checklist item verifying `enforce_host_tenant_resolution=True` in the production config, tied to the ratified Q17 decision.
 
 ## 6. C0-07 — Testing Before Release
 **Principle**: Testing is complete before a release, not deferred to post-release hotfixes.
@@ -37,12 +37,13 @@ Defines the five core design-principle gates from the Constitution and records t
 | Gate | Principle | Automated enforcement? | Current compliance |
 |---|---|---|---|
 | C0-03 | Docs before dev | No | Retroactive for existing code; must be enforced going forward |
-| C0-04 | Architecture before coding | No | Mixed — target architecture diverges from build without a recorded ADR |
+| C0-04 | Architecture before coding | No | Ratified intentional phased roadmap (founder Q3) — divergence is by design, not drift |
 | C0-05 | Reuse before rebuild | No (review-based) | Largely compliant |
-| C0-06 | Security before deployment | Partial (secret scan only) | Partially compliant — see gaps above |
+| C0-06 | Security before deployment | Partial (secret scan only) | Partially compliant — tenant-isolation gap ratified must-fix-before-launch (founder Q17), not yet implemented |
 | C0-07 | Testing before release | Yes (CI blocks on failure) | Partially compliant — coverage gaps remain |
 
 ## 8. Outcome
-- [ ] Engineering lead ratifies gate statuses above
+- [x] Founder ratifies C0-04 and C0-06 gate statuses above (via `docs/00-INTAKE-FORM.md` Q3, Q17)
+- [ ] Engineering lead ratifies remaining gate statuses (C0-03, C0-05, C0-07)
 - [ ] For each "No" in the enforcement column, decide whether to automate the gate or explicitly accept manual/review-based enforcement
-- [ ] Testing and security gaps scheduled per Master Documents 15 and 25
+- [ ] Testing and security gaps scheduled per Master Documents 15 and 25 — including the outstanding code change to flip `enforce_host_tenant_resolution` to `True`

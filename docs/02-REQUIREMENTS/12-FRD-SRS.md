@@ -61,11 +61,11 @@ Backend: Python ≥3.11, FastAPI, SQLAlchemy 2 (async) + Alembic, PostgreSQL (as
 | NFR-6 CI quality gates | Lint, test, migration, Docker build checks run on every PR | AC: `pr-validation.yml` blocks merge on any failing required check |
 
 ### B.3 Non-functional gaps (no test/enforcement evidence found)
-- No explicit uptime/availability target found.
-- No explicit data retention/deletion policy found in code.
-- No input-sanitization/XSS layer beyond Pydantic validation confirmed.
-- No webhook signature verification (no webhook integration exists yet).
-- `enforce_host_tenant_resolution` defaults to `False` — tenant isolation via host header is opt-in, not enforced by default.
+- **Uptime target**: resolved at the decision level — intake form Q14 sets 99.9% for production customers. Not yet instrumented/monitored against.
+- **Data retention/deletion policy**: partially resolved — Q15 confirms configurable retention + automated backup/recovery is the intended design; exact retention period and a formal deletion procedure are still undefined.
+- No input-sanitization/XSS layer beyond Pydantic validation confirmed — not addressed by intake.
+- No webhook signature verification (no webhook integration exists yet) — not addressed by intake, though Q11's payment-processor plan (SSLCommerz/1Card) means this will need to be built alongside that integration.
+- `enforce_host_tenant_resolution` defaults to `False` — **ratified must-fix before launch** per intake form Q17; tenant isolation via host header must be enforced, not opt-in, before production. Code change still outstanding.
 
 ## Part C — Scope & Out-of-Scope (P2-04)
 
@@ -76,11 +76,11 @@ Backend: Python ≥3.11, FastAPI, SQLAlchemy 2 (async) + Alembic, PostgreSQL (as
 - External payment webhook handling (no Stripe/payment signature verification code found).
 - The [doc/default] aspirational infrastructure in `TECH_STACK.md` (Kong, Kafka, Triton, Keycloak, ClickHouse) — not implemented, treated as future-phase.
 
-**Ambiguous / needs a decision:**
-- Whether `enforce_host_tenant_resolution=False` default is acceptable for v1 launch or must be hardened first.
-- Whether `AI-Conversation-Intelligence-Architecture/` is authoritative future architecture for Sonic or an independent reference project.
+**Resolved (previously ambiguous):**
+- `enforce_host_tenant_resolution=False` — **not acceptable for v1 launch**; must be hardened and enabled first (intake form Q17). Code change still outstanding.
+- `AI-Conversation-Intelligence-Architecture/` — resolved by removal from the product repo entirely (intake form Q23); it is an independent reference project, not authoritative for Sonic.
 
 ## Outcome
 - [ ] Product owner confirms functional list (Part A) is complete and prioritized
-- [ ] Engineering lead confirms NFRs (Part B) are accurate and complete; gaps in B.3 triaged
-- [ ] Scope/out-of-scope (Part C) confirmed by founder/product before release
+- [x] Two of Part C's ambiguous items resolved via founder input (Q17, Q23); engineering lead still to confirm remaining NFRs (Part B) accurate/complete and triage remaining B.3 gaps
+- [x] Scope/out-of-scope (Part C) tenant-isolation and architecture-authority ambiguity confirmed by founder
