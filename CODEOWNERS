@@ -1,0 +1,27 @@
+# Sonic CODEOWNERS
+# Mapped to Master Document 26 (RACI) — see docs/11-PROJECT-MANAGEMENT/26-Project-Management.md
+# and specified in docs/06-DEVELOPMENT/20-Software-Engineering-Standards.md (P9-04).
+# CTO (Alauddin Azad) is fallback reviewer on all paths below.
+#
+# NOTE: @handles below are placeholders (name-derived) pending confirmation of each
+# owner's actual GitHub username in the Bad-Vibe-Coders org — swap in real handles
+# before this file is relied on for enforced review routing.
+
+# Security & multi-tenancy — Farhan Sadik
+backend/app/core/security.py            @farhansadik
+backend/app/core/tenant_resolution.py   @farhansadik
+
+# AI / LLM pipeline — Shah Mustakin Rahman
+backend/app/services/llm.py             @mustakin-rahman
+backend/app/pipeline/                   @mustakin-rahman
+backend/app/prompts/                    @mustakin-rahman
+
+# Billing — Huzayfa Talha
+backend/app/api/v1/billing.py           @huzayfa-talha
+backend/app/models/billing*.py          @huzayfa-talha
+
+# CI/CD — MD. Mohiuddin Ahmed
+.github/workflows/                      @mohiuddin-ahmed
+
+# Fallback — CTO on everything not matched above
+*                                       @alauddin-azad

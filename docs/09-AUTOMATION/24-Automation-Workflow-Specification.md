@@ -1,6 +1,6 @@
 # Master Document 24 — Automation & Workflow Specification
 
-**Controls covered:** P26-01 (Workflow, rules and escalation engines implemented), P26-02 (Scheduled jobs and auto-reporting implemented)
+**Controls covered:** P26-01 (Workflow, rules and escalation engines implemented), P26-02 (Scheduled jobs and auto-reporting implemented), P17-02 (Compliance dashboard & executive KPIs), P24-01 (Executive & operational dashboards)
 **Phase:** 26 — Enterprise Automation
 **Status:** Draft — partial implementation; scheduled/escalation automation is a gap
 
@@ -27,7 +27,19 @@
 
 **Auto-reporting (compliance/risk digest emails) — resolved (intake form Round 2, Q39): later-phase feature, not MVP.** The pilot scope focuses on core compliance/risk analysis and dashboard capabilities; scheduled digest emails are explicitly deferred past the pilot. The design remains as specified (Celery Beat weekly job per tenant, reusing `analytics.py` aggregation and the existing SMTP service) so it can be picked up directly once prioritized — no re-design needed when the time comes.
 
+## P17-02 / P24-01 — Compliance dashboard, executive KPIs & operational dashboards
+**Status: Spec defined, not yet built — one design serves both controls, avoiding two competing dashboard efforts.**
+
+| Dashboard | Audience | Contents | Data source |
+|---|---|---|---|
+| Operational (technical) | Engineering/platform-admin | Prometheus panels: pipeline-stage duration, failure rate, `sonic_llm_tokens_total`, P7-06 failover events, P5-02 partitioning-trigger metric | Prometheus (existing, Master Doc 14 P6A-10) |
+| Executive/governance | CTO, business owner | LB-06 governance KPI baseline (Master Doc 0), consolidated risk index (Master Doc 26 §P13-03), tenant activation rate (Master Doc 31 §P4-04), AI-credit revenue/consumption trend | Master Doc 0 + Master Doc 26 (manual, until instrumented) + `CreditLedger` (P7-07) once implemented |
+| Compliance | CTO, business owner, (future) customer compliance officers | Per-tenant finding counts by severity, human-review completion rate (P7-05), red-team pass/fail history (P7-09) | `StageRun`/finding tables (P7-04) + Master Doc 0 |
+
+**Build sequencing**: operational dashboard reuses existing Prometheus/Grafana-style tooling (lowest effort, mostly config). Executive/compliance dashboards start as a manually-updated view (reusing Master Doc 0/26's existing tables) and only get a dedicated UI once the underlying data (CreditLedger, AuditLog, StageRun extensions) is actually implemented — building a dashboard UI against data that doesn't exist yet would be backwards.
+
 ## Outcome
 - [x] Escalation-engine requirement fully scoped (severity → routing table) in P26-01 above — ready to implement, and unaffected by the digest-email deferral (escalation is pilot-critical; digests are not)
 - [x] Refresh-token, stale-`StageRun`, and conversation-retention cleanup jobs specified — implementation outstanding, flagged as real (not hypothetical) operational gaps that should ship with the pilot regardless of digest-email timing
 - [x] Auto-reporting/scheduled digests confirmed **later-phase**, not MVP (Round 2, Q39) — spec retained for when it's prioritized
+- [x] Compliance and executive/operational dashboard specs written, sequenced to build the operational (Prometheus-based) dashboard first since its data already exists (P17-02, P24-01)

@@ -1,6 +1,6 @@
 # Master Document 18 — Database Design & Governance
 
-**Controls covered:** P5-01 (ERD and normalized schema documented), P5-02 (Indexing, partitioning and performance design documented), P5-03 (Backup, restore, retention and archiving strategy defined), P5-04 (Audit trail at data layer), P5-05 (Master data, reference data and metadata governed)
+**Controls covered:** P5-01 (ERD and normalized schema documented), P5-02 (Indexing, partitioning and performance design documented), P5-03 (Backup, restore, retention and archiving strategy defined), P5-04 (Audit trail at data layer), P5-05 (Master data, reference data and metadata governed), P6A-06 (Database engineering specification — same evidence as P5-01/P5-02, viewed from the P6A engineering-spec angle), P22-01 (Data classification), P22-02 (Retention enforcement), P22-03 (Consent management and DSAR)
 **Phase:** 5 — Database Engineering
 **Status:** Draft — schema evidenced from models/migrations; several controls are real gaps
 
@@ -8,6 +8,48 @@
 **Status: Partial.** No ERD exists inside `backend/`, but a formal ERD exists in the separate `AI-Conversation-Intelligence-Architecture/` project (`source/mermaid/03_Data_Architecture/33_Analytics_ERD.mmd`, with rendered `.png`/`.md`), plus `docs/database/overview.md` and `docs/diagrams/03_Data_Architecture/40_Data_Lifecycle.md` in that sub-project. **This ERD has not been confirmed to match the actual `backend/app/models/__init__.py` schema** — it may describe the target architecture rather than current tables.
 
 Current schema (evidenced, `app/models/__init__.py`, 9 sequential Alembic migrations `0001`–`0009`): `Tenant`, `User`, `Invitation`, `Conversation`, `Segment`, `StageRun`, `Notification`, `TenantMetrics`, `Plan`, `Subscription`, `Lead`, `Invoice`, `RefreshToken`, `PlatformAdmin`, plus enums (`Role`, `ConversationStatus`, `InvitationStatus`, `NotificationKind`, `SubscriptionStatus`, `InvoiceStatus`).
+
+**Interim hand-drafted ERD** (core entities and relationships, transcribed from the model list below — supersedes "no ERD exists" but is explicitly **not** a substitute for the code-generated ERD in the recommendation that follows; hand-transcription can drift from the live schema in ways a generated diagram cannot):
+
+```mermaid
+erDiagram
+  Tenant ||--o{ User : has
+  Tenant ||--o{ Conversation : owns
+  Tenant ||--o{ Invitation : issues
+  Tenant ||--|| Subscription : has
+  Tenant ||--o{ Lead : tracks
+  Subscription }o--|| Plan : "billed under"
+  Subscription ||--o{ Invoice : generates
+  Conversation ||--o{ Segment : "split into"
+  Conversation ||--o{ StageRun : "processed via"
+  User ||--o{ RefreshToken : holds
+  User ||--o{ Notification : receives
+  Tenant ||--o{ TenantMetrics : aggregates
+  PlatformAdmin ||--o{ Tenant : operates
+
+  Tenant {
+    uuid id
+    string name
+    string subdomain
+  }
+  User {
+    uuid id
+    uuid tenant_id
+    string email
+    enum role
+  }
+  Conversation {
+    uuid id
+    uuid tenant_id
+    enum status
+    datetime created_at
+  }
+  StageRun {
+    uuid id
+    uuid conversation_id
+    string stage
+  }
+```
 
 **Recommendation (spec)**: generate the ERD directly from `backend/app/models/__init__.py` via `eralchemy2` or `sqlalchemy-schemadisplay` (either reads SQLAlchemy metadata directly, avoiding a hand-drawn diagram that drifts from the schema), commit the rendered `.svg`/`.png` to `docs/04-DATABASE/`, and regenerate it as a CI check whenever a migration is added (`migration-check.yml` already runs on every PR — extend it to also regenerate/diff the ERD). Reconcile once against the architecture-repo's ERD and note divergences explicitly in this document; do not attempt to keep the two in permanent lockstep — the architecture-repo's ERD is a target-state reference, not a second source of truth for the current schema.
 
@@ -51,9 +93,39 @@ Current schema (evidenced, `app/models/__init__.py`, 9 sequential Alembic migrat
 
 **Specification**: `Plan` catalog changes (new tier, price change, credit-allotment change) require: (1) a dedicated migration — never an ad-hoc data patch — so every pricing change is version-controlled and reviewable as a diff; (2) sign-off from the Billing row owner (per Master Document 26 RACI: Huzayfa Talha, Responsible; Nasib Khan, Accountable) in addition to the standard engineering code-review, since this is a revenue decision, not just a schema change; (3) the change is logged in the P5-04 `AuditLog` table (`action="plan.changed"`) so historical pricing is reconstructable for billing-dispute resolution.
 
+## P22-01 — Data classification policy
+**Status: Spec defined, not yet implemented.** No formal data-classification labeling exists in the schema today.
+
+**Specification:**
+| Class | Examples | Handling |
+|---|---|---|
+| Restricted (PII/customer content) | `Conversation`/`Segment` raw content and transcripts, redacted-PII spans, `raw_output_ref` LLM outputs | Tenant-scoped access only; subject to the P22-02 retention window; PII-redaction pre-pass (Master Doc 16 P7-02 §2) before third-party (Anthropic) transmission |
+| Confidential (business data) | `Invoice`, `Subscription`, `Plan`, billing records | Tenant-scoped; audit-logged on change (P5-04) |
+| Internal (operational) | `StageRun`, `Notification`, metrics | Platform-admin and tenant-scoped as appropriate; not customer-secret but not public |
+| Public | None currently — no publicly-exposed content model exists | N/A |
+
+**Stewardship**: data classification is a joint responsibility of the Database owner (Huzayfa Talha, implementation) and the Security owner (Farhan Sadik, policy) per Master Document 26 RACI; new tables/columns must be classified at design time (added to the PR checklist in `.github/PULL_REQUEST_TEMPLATE.md`), not retrofitted.
+
+## P22-02 — Retention enforcement
+**Status: Spec defined, extends the P5-03 target into an executable design.** The 30-day conversation-data retention target (P5-03, Round 2 Q35) currently has no enforcement mechanism in code.
+
+**Specification**: a third scheduled Celery Beat job (alongside the refresh-token cleanup and stale-`StageRun` jobs specified in Master Document 24) — `enforce_conversation_retention`, running daily, that: (1) identifies `Conversation` records past the 30-day retention window, (2) hard-deletes raw content and associated `Segment`/media/S3 objects, (3) retains aggregated analytics/scores per the open question flagged in Master Document 11 (pending founder confirmation on whether aggregates outlive raw content), (4) writes a `retention.purged` row to the P5-04 `AuditLog` (count + tenant, not per-record detail, to avoid the audit log itself becoming a PII store) so purge activity is itself auditable. Backup-retention (a separate 30-day clock, per P5-03) is unaffected — a purged production record's prior backups still age out on their own schedule.
+
+## P22-03 — Consent management and DSAR (Data Subject Access Request) workflow
+**Status: Spec defined, not yet implemented.** No consent-tracking or DSAR-handling mechanism exists.
+
+**Specification:**
+1. **Consent**: tenant-level agreement to Sonic's Terms of Service / DPA (see `docs/12-LEGAL/`) captured at signup (`Tenant.tos_accepted_at`, `Tenant.dpa_accepted_at` — new columns); end-user-level consent (e.g. a contact-center agent whose calls are recorded) is the tenant customer's own responsibility as data controller, with Sonic acting as processor — this boundary must be stated explicitly in the DPA, not assumed.
+2. **DSAR intake**: per the current support-driven model (P5-03, deletion triggered by support request, self-service deferred), a DSAR (access or deletion request) is logged as a support ticket, actioned manually by the platform-admin team via existing `/platform` tooling, and recorded in the `AuditLog` (`action="dsar.fulfilled"`). Self-service DSAR tooling is a post-GA enhancement, not a launch blocker, given current customer scale.
+3. **Response SLA**: 30 days (aligned with common data-protection regulatory norms — e.g. GDPR Art. 12(3) — as a proportionate proxy standard even though Sonic's initial markets are Bangladesh/Nepal, per Master Document 6 §regulatory note and the Round 2 regulatory-assessment gap tracked in this document set).
+
 ## Outcome
 - [x] ERD generation approach specified (`eralchemy2` from live models, CI-regenerated) — generation itself still an implementation task
+- [x] Interim hand-drafted ERD (core entities/relationships) added directly to this document, closing the "no ERD exists" gap while the code-generated version remains outstanding — explicitly flagged as lower-confidence than a generated diagram
 - [x] Backup/restore/retention **target** defined by founder (daily backups, 30-day retention — Q26); implementation before production customer data is handled at scale remains the highest-priority open item in this document
 - [x] Audit-trail schema and scope fully specified for role/billing/platform-admin-action tables (P5-04) — implementation outstanding
 - [x] Indexing rationale documented and partitioning trigger threshold set (P5-02) — implementation of any missing indexes outstanding
 - [x] Plan-catalog change-governance process specified (P5-05)
+- [x] Data classification policy specified (P22-01) — retroactive per-table classification and PR-checklist enforcement still outstanding
+- [x] Retention-enforcement job specified as a third Celery Beat job, extending Master Document 24 (P22-02) — implementation outstanding
+- [x] Consent capture and DSAR workflow specified, tied to `docs/12-LEGAL/` (P22-03) — implementation and self-service tooling outstanding

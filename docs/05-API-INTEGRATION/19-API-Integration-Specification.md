@@ -1,6 +1,6 @@
 # Master Document 19 — API & Integration Specification
 
-**Controls covered:** P6-01 (API-first design with documented API contract), P6-02 (Authentication and authorization on every endpoint), P6-03 (Rate limiting and API versioning implemented), P6-04 (Webhook / event integration secured), P6-05 (Integration architecture with external systems documented)
+**Controls covered:** P6-01 (API-first design with documented API contract), P6-02 (Authentication and authorization on every endpoint), P6-03 (Rate limiting and API versioning implemented), P6-04 (Webhook / event integration secured), P6-05 (Integration architecture with external systems documented), P6A-07 (API engineering specification), P25-01 (Plugin architecture/extension framework), P25-02 (SDK, developer portal, API monetization)
 **Phase:** 6 — API & Integration
 **Status:** Draft
 
@@ -37,9 +37,27 @@ Routes (evidenced, `app/api/v1/router.py`, prefix `/api/v1`): `auth`, `team`, `o
 - **Object storage**: boto3 against S3/MinIO-compatible storage.
 - **No other third-party integrations found** (no Stripe/Twilio/SendGrid SDK references).
 
+## P6A-07 — API engineering specification
+Extends P6-01 with the standards not yet documented:
+- **Response envelope**: `{data: ..., meta: {page, per_page, total} (list endpoints only)}` for success; `{error: {code, message, field? }}` for failures — consistent shape across all 14 router modules (currently implicit/ad-hoc, this is the specified standard going forward).
+- **Error code catalog**: HTTP status carries the class of error (400 validation, 401/403 auth, 404 not found, 409 conflict, 429 rate-limited, 500 server); a machine-readable `error.code` string (e.g. `TENANT_NOT_FOUND`, `CREDIT_EXHAUSTED` — ties to Master Doc 16 P7-07) supplements it for client-side branching without string-matching messages.
+- **SDK generation**: since OpenAPI is already auto-generated (P6-01), a typed client SDK (TypeScript for the frontend, at minimum) can be generated via `openapi-typescript` or similar directly from the committed `openapi.json` — see P25-02 below, same underlying artifact serves both controls.
+
+## P25-01 — Plugin architecture & extension framework
+**Status: Not planned for MVP — explicit, proportionate scope decision, not an oversight.** The pipeline's stage-level feature-flagging (Master Doc 14 §2) already provides Sonic's own extensibility need (adding/removing pipeline stages) without requiring a third-party plugin/marketplace model. A third-party plugin architecture is only warranted once an external partner ecosystem is a validated business goal — not stated in any founder decision to date (Master Doc 6, Master Doc 30). **Trigger to revisit**: a specific partner-integration request that the current architecture cannot satisfy via a normal API integration.
+
+## P25-02 — SDK, developer portal & API monetization
+**Status: Spec defined for the SDK path; developer portal and API monetization explicitly deferred (no external-developer business model exists).**
+1. **SDK**: generate a TypeScript client from the committed `openapi.json` (P6-01/P6A-07) — this serves internal frontend consumption first; publishing it externally is a separate, later decision gated on whether Sonic ever exposes its API to customer-side integrators (not currently in scope — Sonic's API is consumed by its own frontend, not sold as a platform API).
+2. **Developer portal**: not needed until/unless the API itself becomes a monetized product surface, which is not part of the current commercialization model (Master Doc 6 — usage-based AI-credit pricing for the *application*, not API-access reselling).
+3. This is a legitimate "not yet, and not without a business trigger" answer, not a silent gap — recorded here so the control isn't mistaken for an unaddressed oversight.
+
 ## Outcome
 - [ ] OpenAPI contract committed/exported as a CI artifact (P6-01) — implementation task, no policy blocker
 - [ ] Route-by-route auth/authorization audit performed and documented (P6-02) — implementation/audit task, no policy blocker
 - [x] Rate-limiting extension and API versioning/deprecation policy now specified (P6-03) — implementation still outstanding; exact per-tier throughput limits depend on Master Document 10's pricing tiers (still pending, Q12)
 - [x] Webhook security requirements specified in Master Document 15, ready for the payment-integration feature (P6-04)
 - [x] SMTP production-config policy specified — implementation (the startup check) still outstanding (P6-05)
+- [x] Response envelope and error-code catalog standard specified (P6A-07) — retrofit to existing endpoints still outstanding
+- [x] Plugin architecture explicitly scoped out for MVP with a stated revisit trigger, not silently skipped (P25-01)
+- [x] SDK-generation path specified (reuses the OpenAPI export); developer portal/API monetization explicitly deferred pending a business decision that doesn't currently exist (P25-02)

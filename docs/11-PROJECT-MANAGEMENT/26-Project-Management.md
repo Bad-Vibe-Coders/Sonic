@@ -1,6 +1,6 @@
 # Master Document 26 — Project Management (P13 gap-fill addendum)
 
-**Controls covered:** P13-01 (Project charter, WBS and roadmap exist), P13-02 (RACI and ownership defined), P13-03 (Risk, issue and decision registers maintained), P13-04 (Team charter, skills matrix and hiring plan addressed)
+**Controls covered:** P13-01 (Project charter, WBS and roadmap exist), P13-02 (RACI and ownership defined), P13-03 (Risk, issue and decision registers maintained), P13-04 (Team charter, skills matrix and hiring plan addressed), PB-03 (Role clarity & ownership defined — satisfied by the same P13-02 RACI table below, one artifact viewed from two phase angles)
 **Phase:** 13 — Project Management
 **Status:** Draft — RACI ownership (P13-02) and team roster (P13-04) now named per founder input; charter/roadmap (P13-01) and risk-register consolidation (P13-03) still pending
 
